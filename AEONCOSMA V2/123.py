@@ -659,7 +659,7 @@ class ResearchEngine:
         print("  [LLM] Interpretando resultados da pesquisa com profundidade...")
         
         # SUA CHAVE GEMINI FOI INSERIDA AQUI!
-        apiKey = "AIzaSyCvALTDnskX-aLes97Qr3zLRlgoS-uPkwk"
+        apiKey = "INSIRA_SUA_API_KEY_AQUI"
 
         if not apiKey: # Mantido como fallback para aviso
             return "Interpretação LLM: Chave de API do Gemini não configurada. A interpretação da pesquisa não foi gerada."
@@ -1193,7 +1193,7 @@ def run_dsl_script(script: str, research_engine: ResearchEngine, incentive_syste
         tokens = line.split()
         command = tokens[0]
         args = tokens[1:]
-        
+
         print(f"\n--- Executando Comando DSL: {command} ---")
 
         if command == "RUN_EPOCH":
