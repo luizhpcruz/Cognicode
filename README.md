@@ -2,6 +2,9 @@
 
 Este repositório contém experimentos de IA simbólica, evolução e visualização vetorial.
 
+## Descrição
+Projeto voltado para simulações de inteligência artificial simbólica, evolução de cadeias vetoriais, visualização de dinâmicas evolutivas e análise de entropia em sistemas complexos. Ideal para estudos, pesquisa e criatividade em IA simbólica e sistemas adaptativos.
+
 ## Como rodar
 
 1. Instale as dependências:
@@ -15,9 +18,10 @@ Este repositório contém experimentos de IA simbólica, evolução e visualiza�
 
 ## Funcionalidades
 - Evolução simbólica de cadeias de ativação (L/S)
-- Visualização vetorial interativa
+- Visualização vetorial interativa (quiver plot)
 - Cálculo de entropia e taxa de variação
 - Geração de animação GIF
+- Scripts para automação do setup e envio para o GitHub
 
 ## Organização
 - `daemon_engine/`: scripts principais e módulos de simulação
@@ -28,5 +32,8 @@ Este repositório contém experimentos de IA simbólica, evolução e visualiza�
 2. Crie uma branch para sua feature
 3. Envie um pull request
 
+## Licença
+Este projeto está sob a licença MIT.
+
 ---
-Projeto experimental para pesquisa e criatividade em IA simbólica.
+Projeto experimental aberto para colaboração, pesquisa e inovação em IA simbólica.
