@@ -1,0 +1,1231 @@
+#!/usr/bin/env python3
+# aeoncosma_engine_v2.py
+# Versão 2.8: Estrutura Completa do Sistema de Mente Sintética Evolutiva com Prova de Pesquisa (PoR) Modular e Clássica.
+# Inclui: Módulos de Pesquisa, Evolução de DNA, Ledger (Blockchain Simplificada), Sistema de Incentivos e Suporte a Múltiplos Participantes.
+
+from typing import List, Dict, Optional, Tuple
+import numpy as np
+import hashlib
+import json
+from datetime import datetime
+from enum import Enum, auto
+import sqlite3
+from dataclasses import dataclass
+import random
+from joblib import Parallel, delayed
+import time # Importado para usar time.sleep() no loop principal de execução
+import requests # NOVO: Importado para fazer chamadas HTTP a APIs externas
+
+# Removida a dependência do Qiskit para garantir execução puramente clássica.
+# from qiskit import QuantumCircuit
+# from qiskit_aer import Aer # Para Aer.get_backend('aer_simulator')
+
+# Importações de criptografia para gerar chaves e fingerprints (identificadores).
+# Usado para simular carteiras e identificadores únicos de participantes/DNA.
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives import serialization
+
+##############################################
+# MÓDULOS CRIPTOGRÁFICOS BÁSICOS (Funções de Suporte)
+# Funções essenciais para a Prova de Pesquisa e transações no sistema.
+##############################################
+
+def gerar_wallet():
+    """
+    Gera um par de chaves (privada e pública) usando criptografia de curva elíptica (SECP256R1).
+    Retorna a chave privada (objeto) e a chave pública (PEM formatado em string).
+    Este é um exemplo para simular a base de identidade dos participantes.
+    """
+    private_key = ec.generate_private_key(ec.SECP256R1())
+    public_key = private_key.public_key()
+    pub_pem = public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    ).decode()
+    return private_key, pub_pem
+
+def gerar_fingerprint(public_key_pem):
+    """
+    Gera uma "impressão digital" (fingerprint) para uma chave pública.
+    É um hash SHA256 da chave pública, truncado para os primeiros 16 caracteres.
+    Funciona como um identificador único para o participante ou para uma versão de DNA.
+    """
+    return hashlib.sha256(public_key_pem.encode()).hexdigest()[:16]
+
+##############################################
+# CLASSES CORE DO SISTEMA AEONCOSMA
+# Define as entidades fundamentais do ecossistema.
+##############################################
+
+class ResearchDomain(Enum):
+    """Enumeração dos diferentes domínios de pesquisa que a IA pode explorar."""
+    COSMOLOGY = auto()
+    EXOPLANETS = auto()
+    QUANTUM_CRYPTO = auto() # Mantido como domínio, mas com simulação clássica
+    COMPUTATIONAL_BIOLOGY = auto()
+    MATERIALS_SCIENCE = auto()
+    CLIMATE_MODELING = auto()
+
+@dataclass
+class ResearchResult:
+    """
+    Estrutura de dados para armazenar os resultados de uma pesquisa específica
+    gerada pela IA em um determinado domínio.
+    """
+    domain: ResearchDomain       # O domínio científico da pesquisa (ex: Cosmologia).
+    metrics: Dict[str, float]    # Métricas quantitativas resultantes da pesquisa (ex: 'h(z)', 'fit_quality').
+    parameters: Dict[str, float] # Parâmetros de entrada usados na simulação da pesquisa.
+    timestamp: datetime          # Carimbo de data/hora da geração do resultado.
+    dna_fingerprint: str         # A "impressão digital" do CosmicDNA que gerou este resultado.
+
+class CosmicDNA:
+    """
+    Representa a "impressão genética" da mente sintética, contendo genes que influenciam
+    seu comportamento de pesquisa e um score de fitness que mede seu sucesso.
+    """
+    def __init__(self, genes: Dict[str, float], fitness_score: float = 0.0, generation: int = 0):
+        self.genes = genes             # Dicionário de genes (parâmetros numéricos) que a IA evolui.
+        self.fitness_score = fitness_score # Pontuação que indica quão "apto" este DNA é em gerar pesquisa valiosa.
+        self.generation = generation   # A geração à qual este DNA pertence na evolução.
+        self.fingerprint = self._calculate_fingerprint() # Identificador único para esta configuração de DNA.
+    
+    def _calculate_fingerprint(self) -> str:
+        """
+        Gera um hash SHA3-256 (truncado para 16 caracteres) dos genes do DNA.
+        Serve como um identificador único para esta versão específica do DNA.
+        """
+        gene_str = json.dumps(self.genes, sort_keys=True) # Garante ordem consistente para o hash
+        return hashlib.sha3_256(gene_str.encode()).hexdigest()[:16]
+    
+    def mutate(self) -> 'CosmicDNA':
+        """
+        Cria uma nova versão "mutada" deste CosmicDNA.
+        A mutação é um processo aleatório que altera ligeiramente os genes,
+        simulando a evolução e a exploração de novas estratégias de pesquisa.
+        """
+        new_genes = self.genes.copy()
+        for key in new_genes:
+            if np.random.random() < 0.1:  # 10% de chance de mutação por gene
+                new_genes[key] += np.random.normal(0, 0.1) # Adiciona ruído gaussiano
+        # Retorna um novo objeto CosmicDNA com os genes mutados e a próxima geração.
+        return CosmicDNA(new_genes, fitness_score=0.0, generation=self.generation + 1)
+
+##############################################
+# MÓDULOS DE PESQUISA DEDICADOS
+# Classes especializadas que simulam os processos de pesquisa em diferentes domínios.
+##############################################
+
+class CosmologyResearchModule:
+    """Simula pesquisa no domínio da Cosmologia."""
+    def __init__(self, parameters: Dict):
+        self.params = parameters # Parâmetros iniciais para as simulações cosmológicas.
+        self.history = []        # Histórico de resultados de simulações.
+    
+    def run_simulation(self, real_h0: Optional[float] = None) -> Dict[str, float]:
+        """
+        Executa uma simulação cosmológica simplificada.
+        Gera métricas como a constante de Hubble (h(z)) e sigma8 com base nos parâmetros.
+        Pode incorporar um valor real de h0 se fornecido.
+        """
+        h0_base = self.params.get('h0', 67.8) # Constante de Hubble base.
+        if real_h0 is not None:
+            # Se um valor 'real' for fornecido, a simulação tenta se ajustar a ele.
+            # O bias do DNA agora representa o quão bem ele 'aprende' a se aproximar do real.
+            h_z = real_h0 + np.random.normal(0, 0.5) * self.params.get('h0_real_data_noise', 1.0)
+        else:
+            h_z = np.random.normal(h0_base, 2) # h(z) com variação aleatória.
+
+        omega_m = self.params.get('omega_m', 0.3) # Densidade de matéria.
+        sigma8 = 0.8 + (omega_m - 0.3) * 0.5 # Exemplo de métrica relacionada a omega_m.
+        
+        metrics = {
+            'h(z)': h_z,
+            'sigma8': sigma8,
+            'fit_quality': 1.0 - abs(h_z - 70)/70, # Qualidade de ajuste a um valor alvo (ex: 70).
+            'consistency': 0.9 - abs(sigma8 - 0.8)/2 # Consistência com valor esperado (ex: 0.8).
+        }
+        
+        self.history.append({
+            'timestamp': datetime.now(),
+            'parameters': self.params.copy(),
+            'metrics': metrics.copy()
+        })
+        return metrics
+
+class ExoplanetsModule:
+    """Simula pesquisa no domínio da Exoplanetologia."""
+    def __init__(self, parameters: Dict):
+        self.params = parameters # Parâmetros iniciais para as simulações de exoplanetas.
+        self.history = []        # Histórico de resultados.
+
+    def run_simulation(self, real_exoplanet_count: Optional[int] = None) -> Dict[str, float]:
+        """
+        Simula a detecção e caracterização de exoplanetas.
+        Métricas incluem detectabilidade e potencial de habitabilidade.
+        Pode incorporar um número real de exoplanetas.
+        """
+        star_temp = self.params.get('star_temp', 4000 + random.uniform(-500, 500)) # Temperatura da estrela.
+        planet_dist = self.params.get('planet_dist', 0.5 + random.uniform(-0.2, 0.2)) # Distância do planeta à estrela.
+        
+        # Métricas simplificadas.
+        detectability = 0.7 + (star_temp / 10000) * 0.2 - (planet_dist / 2) * 0.1
+        habitability_score = 1.0 - abs(planet_dist - 1.0) / 1.0 * 0.5 # Melhor em 1.0 UA.
+
+        # NOVO: Incorpora o número real de exoplanetas na métrica de detectabilidade
+        # Uma maior contagem real pode significar uma 'melhor' capacidade de detecção da IA
+        if real_exoplanet_count is not None:
+            # Ajusta detectability_score com base no log do número real de exoplanetas
+            # log10 é usado para escalar, pois a contagem pode ser um número grande
+            detectability += (np.log10(real_exoplanet_count + 1) / 5.0) # Escala para não dominar a métrica
+            detectability = max(0, min(1, detectability)) # Garante valor entre 0 e 1.
+            print(f"  (Exoplanets: Ajustando detectabilidade com {real_exoplanet_count} exoplanetas reais)")
+        
+        metrics = {
+            'detectability_score': detectability, 
+            'habitability_potential': max(0, min(1, habitability_score)) # Garante valor entre 0 e 1.
+        }
+
+        self.history.append({
+            'timestamp': datetime.now(),
+            'parameters': self.params.copy(),
+            'metrics': metrics.copy()
+        })
+        return metrics
+
+class QuantumCryptoModule:
+    """
+    Simula testes de protocolos de criptografia quântica.
+    Embora o Qiskit tenha sido removido, o módulo mantém a funcionalidade simulada.
+    """
+    def __init__(self):
+        # Nenhuma inicialização de backend Qiskit é necessária, pois a simulação é clássica.
+        pass
+    
+    def test_protocol(self, protocol_type: str) -> Dict[str, float]:
+        """
+        Testa um protocolo de criptografia quântica (ex: BB84) em um ambiente simulado classicamente.
+        Os resultados de erro, eficiência e segurança são baseados em probabilidades aleatórias.
+        """
+        if protocol_type == "BB84":
+            # Simulação clássica do BB84.
+            basis_alice_choice = random.choice(['X', 'Z']) # Escolha de base aleatória de Alice.
+            basis_bob_choice = random.choice(['X', 'Z'])   # Escolha de base aleatória de Bob.
+            
+            # Simula a taxa de erro: maior se bases não coincidem ou se houver ruído.
+            simulated_error = 0.1 # Erro base.
+            if basis_alice_choice != basis_bob_choice:
+                simulated_error += 0.4 # Aumenta o erro se as bases são diferentes (falha na medição).
+            
+            # Ajuste final e garantias de faixa para as métricas.
+            error_rate = min(1.0, simulated_error + random.uniform(-0.05, 0.05))
+            efficiency = 0.8 - error_rate * 0.5 # Eficiência diminui com o erro.
+            security = 1.0 - error_rate # Segurança é inversamente proporcional ao erro.
+
+            return {
+                'error_rate': error_rate,
+                'efficiency': efficiency,
+                'security': security
+            }
+        
+        # Valores padrão para outros protocolos ou falhas.
+        return {'error_rate': 0.5, 'efficiency': 0.5, 'security': 0.5}
+
+class ComputationalBiologyModule:
+    """Simula pesquisa no domínio da Biologia Computacional (ex: dobramento de proteínas)."""
+    def __init__(self, parameters: Dict):
+        self.params = parameters # Parâmetros iniciais para as simulações.
+        self.history = []        # Histórico de resultados.
+
+    def simulate_protein_folding(self, real_protein_length: Optional[int] = None) -> Dict[str, float]:
+        """
+        Simula um processo simplificado de dobramento de proteína.
+        Métricas incluem estabilidade e eficiência do tempo de dobramento.
+        Pode incorporar um comprimento real de proteína.
+        """
+        protein_length = int(self.params.get('protein_length', 50 + random.randint(-10, 10))) # Comprimento da proteína simulado.
+        if real_protein_length is not None:
+            # NOVO: Se um comprimento real for fornecido, a simulação se baseia nele.
+            # O DNA agora tenta otimizar dobramento para tamanhos de proteínas 'reais'.
+            protein_length = real_protein_length
+            print(f"  (Computational Biology: Usando comprimento de proteína real: {protein_length})")
+
+        hydrophobicity = self.params.get('hydrophobicity', 0.5 + random.uniform(-0.1, 0.1)) # Hidrofobicidade.
+
+        # Métricas simplificadas.
+        stability_score = 0.7 + (hydrophobicity * 0.2) - (protein_length / 100) * 0.1
+        folding_time_efficiency = 1.0 - (protein_length / 100) * 0.3 # Quanto menor a proteína, mais eficiente.
+
+        metrics = {
+            'stability_score': max(0, min(1, stability_score)),
+            'folding_time_efficiency': max(0, min(1, folding_time_efficiency))
+        }
+        self.history.append({
+            'timestamp': datetime.now(),
+            'parameters': self.params.copy(),
+            'metrics': metrics.copy()
+        })
+        return metrics
+
+class MaterialsScienceModule:
+    """Simula pesquisa no domínio da Ciência dos Materiais."""
+    def __init__(self):
+        # Modelos de propriedades para simular o comportamento de materiais.
+        self.property_models = {
+            'conductivity': lambda x: 1.0 / (1 + np.exp(-10*(x-0.5))),
+            'strength': lambda x: x**2,
+            'flexibility': lambda x: np.sin(x * np.pi)
+        }
+    
+    def simulate_material(self, real_properties: Optional[Dict[str, float]] = None) -> Dict[str, float]:
+        """
+        Simula propriedades de um material com base em sua composição.
+        Pode incorporar propriedades reais de materiais.
+        """
+        if real_properties:
+            # NOVO: Incorpora propriedades reais como base para as métricas.
+            # Assume que a IA está 'analisando' um material real e gerando insights.
+            density = real_properties.get('Density', 7.87) # Densidade do Ferro (g/cm³)
+            melting_point = real_properties.get('MeltingPoint', 1811) # Ponto de fusão do Ferro (K)
+
+            # A métrica agora reflete a 'qualidade' da pesquisa sobre este material real.
+            # Por exemplo, quão 'ideal' ele é para certas aplicações.
+            # Estes são apenas exemplos de como os dados reais podem influenciar as métricas.
+            conductivity_metric = 1.0 - abs((density - 7.87) / 7.87) * 0.1 # Ideal perto da densidade real
+            strength_metric = (melting_point / 2000.0) # Quanto maior o ponto de fusão, maior a força
+            flexibility_metric = random.uniform(0.1, 0.9) # Flexibilidade ainda aleatória, para diversidade
+
+            print(f"  (Materials Science: Usando dados reais de densidade ({density:.2f}) e ponto de fusão ({melting_point:.2f}))")
+
+            results = {
+                'conductivity': max(0, min(1, conductivity_metric)),
+                'strength': max(0, min(1, strength_metric)),
+                'flexibility': max(0, min(1, flexibility_metric))
+            }
+            return results
+        else:
+            # Composição simulada se não houver dados reais.
+            composition = self.params.get('composition', {'iron': 0.5, 'carbon': 0.5})
+            total = sum(composition.values())
+            if total == 0:
+                return {prop: 0.0 for prop in self.property_models}
+
+            norm_comp = {k: v/total for k, v in composition.items()}
+            avg_composition_value = sum(norm_comp.values()) / len(norm_comp)
+
+            results = {}
+            for prop, model in self.property_models.items():
+                results[prop] = model(avg_composition_value)
+            
+            return results
+
+class ClimateModelingModule:
+    """Simula pesquisa no domínio da Modelagem Climática."""
+    def __init__(self, parameters: Dict):
+        self.params = parameters # Parâmetros iniciais para as simulações climáticas.
+        self.history = []        # Histórico de resultados.
+
+    def run_climate_simulation(self, real_co2_level: Optional[float] = None) -> Dict[str, float]:
+        """
+        Simula um modelo climático simplificado.
+        Métricas incluem aumento da temperatura global, aumento do nível do mar e impacto ambiental.
+        Pode incorporar um nível real de CO2.
+        """
+        co2_emissions_factor = self.params.get('co2_emissions_factor', 0.5 + random.uniform(-0.2, 0.2)) # Fator de emissão de CO2.
+        albedo = self.params.get('albedo', 0.3 + random.uniform(-0.1, 0.1)) # Refletividade da Terra.
+
+        if real_co2_level is not None:
+            # NOVO: O aumento da temperatura é diretamente influenciado pelo nível de CO2 real.
+            # O fator de emissão do DNA agora representa a eficácia de mitigação da IA para aquele nível de CO2.
+            global_temp_increase = (real_co2_level / 400.0) * 3.0 * (1 - albedo) # Escala com CO2 real
+            print(f"  (Climate Modeling: Usando nível de CO2 real: {real_co2_level:.2f} ppm)")
+        else:
+            global_temp_increase = co2_emissions_factor * 3.0 * (1 - albedo) + random.uniform(-0.5, 0.5)
+        
+        sea_level_rise = global_temp_increase * 0.5 + random.uniform(-0.1, 0.1)
+
+        metrics = {
+            'global_temp_increase_celsius': max(0, global_temp_increase),
+            'sea_level_rise_meters': max(0, sea_level_rise),
+            'environmental_impact_score': 1.0 - (global_temp_increase / 5.0 + sea_level_rise / 1.0) # Menor é melhor.
+        }
+        self.history.append({
+            'timestamp': datetime.now(),
+            'parameters': self.params.copy(),
+            'metrics': metrics.copy()
+        })
+        return metrics
+
+class ResearchEngine:
+    """
+    O motor principal do AeonCosma, responsável por gerenciar o pool de DNA,
+    executar ciclos de pesquisa, evoluir o DNA e registrar blocos no ledger.
+    """
+    def __init__(self):
+        self.dna_pool: List[CosmicDNA] = self._initialize_dna_pool() # Pool de DNAs da IA.
+        self.research_history: List[ResearchResult] = [] # Histórico de todos os resultados de pesquisa.
+        self.current_epoch = 0                          # Época atual de pesquisa.
+        
+        # Inicializa os módulos de pesquisa dedicados com parâmetros genéricos.
+        # O DNA ajustará esses parâmetros dinamicamente durante a execução.
+        self.cosmology_module = CosmologyResearchModule(parameters={'h0': 67.8, 'omega_m': 0.3})
+        self.exoplanets_module = ExoplanetsModule(parameters={'star_temp': 4000, 'planet_dist': 0.8})
+        self.quantum_crypto_module = QuantumCryptoModule() # Não recebe parâmetros diretos do DNA.
+        self.comp_bio_module = ComputationalBiologyModule(parameters={'protein_length': 60, 'hydrophobicity': 0.6})
+        self.materials_module = MaterialsScienceModule() # Recebe composição via dna.genes.
+        self.climate_module = ClimateModelingModule(parameters={'co2_emissions_factor': 0.5, 'albedo': 0.3})
+
+        self._init_ledger() # Inicializa o banco de dados do ledger (blockchain simplificada).
+    
+    def _initialize_dna_pool(self, size=10) -> List[CosmicDNA]:
+        """
+        Cria o pool inicial de estratégias de pesquisa (DNAs).
+        Cada novo DNA é criado com um conjunto aleatório de genes e um 'fitness_score' inicial pequeno mas positivo.
+        Isso permite que novos DNAs tenham uma chance de serem selecionados e evoluírem.
+        """
+        initial_fitness_for_new_dna = 0.1 # Valor pequeno, mas maior que zero, para dar uma chance inicial.
+        return [CosmicDNA({
+            'exploration_rate': np.random.uniform(0.1, 0.9),
+            'risk_tolerance': np.random.uniform(0, 1),
+            'domain_focus': np.random.uniform(0, 1), # Gene para ponderar qual módulo rodar.
+            'innovation_bias': np.random.uniform(0.1, 0.5),
+            # Genes específicos para influenciar módulos de pesquisa.
+            'cosmo_h0_bias': np.random.uniform(-5, 5),
+            'exo_star_temp_bias': np.random.uniform(-1000, 1000),
+            'compbio_protein_len_bias': np.random.uniform(-20, 20),
+            'climate_co2_bias': np.random.uniform(-0.3, 0.3),
+            'material_comp_iron': np.random.uniform(0.1, 0.9),
+            'material_comp_carbon': np.random.uniform(0.1, 0.9),
+        }, fitness_score=initial_fitness_for_new_dna) for _ in range(size)]
+    
+    def _init_ledger(self):
+        """
+        Inicializa o banco de dados SQLite para atuar como o "ledger" imutável
+        do sistema, registrando os blocos de pesquisa e seus resultados.
+        """
+        self.conn = sqlite3.connect('aeoncosma_ledger.db')
+        self.conn.execute('''
+            CREATE TABLE IF NOT EXISTS research_blocks (
+                block_id INTEGER PRIMARY KEY,
+                previous_hash TEXT NOT NULL,
+                research_hash TEXT NOT NULL,
+                dna_fingerprint TEXT NOT NULL,
+                combined_metric REAL NOT NULL,
+                timestamp DATETIME NOT NULL,
+                nonce INTEGER NOT NULL,
+                block_hash TEXT NOT NULL UNIQUE
+            )
+        ''')
+        self.conn.execute('''
+            CREATE TABLE IF NOT EXISTS research_results (
+                result_id INTEGER PRIMARY KEY,
+                block_id INTEGER NOT NULL,
+                domain TEXT NOT NULL,
+                metrics TEXT NOT NULL,
+                parameters TEXT NOT NULL,
+                FOREIGN KEY (block_id) REFERENCES research_blocks (block_id)
+            )
+        ''')
+        self.conn.commit() # Salva as mudanças no banco de dados.
+    
+    # NOVAS FUNÇÕES: Métodos para buscar dados reais de APIs
+    def _fetch_real_exoplanet_count(self) -> Optional[int]:
+        """
+        Busca o número total de exoplanetas confirmados da API do NASA Exoplanet Archive.
+        API: https://exoplanetarchive.ipac.caltech.edu/docs/program_interfaces.html
+        Consulta direta para contagem: https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=select+count(*)+from+pscomppars&format=json
+        """
+        url = "https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=select+count(*)+from+pscomppars&format=json"
+        try:
+            response = requests.get(url, timeout=10) # Adiciona timeout para evitar travamentos
+            response.raise_for_status() # Levanta exceções para códigos de status HTTP 4xx/5xx
+            data = response.json()
+            if data and "data" in data and len(data["data"]) > 0:
+                count = data["data"][0][0]
+                print(f"  [API] Exoplanet count fetched: {count}")
+                return count
+        except requests.exceptions.RequestException as e:
+            print(f"  [API ERROR] Failed to fetch exoplanet count: {e}")
+        except (json.JSONDecodeError, KeyError, IndexError) as e:
+            print(f"  [API ERROR] Failed to parse exoplanet data: {e}")
+        return None # Retorna None em caso de falha
+
+    def _fetch_real_protein_info(self, protein_name: str = "insulin") -> Optional[int]:
+        """
+        Busca o comprimento de uma proteína (ex: Insulina) do NCBI E-utilities.
+        Isso simula a busca de dados biológicos reais.
+        Passos: 1. Buscar ID da proteína. 2. Buscar sequência FASTA pelo ID e obter comprimento.
+        """
+        # Passo 1: Buscar ID da proteína
+        search_url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=protein&term={protein_name}&retmax=1&retmode=json"
+        protein_id = None
+        try:
+            response = requests.get(search_url, timeout=10)
+            response.raise_for_status()
+            search_data = response.json()
+            if "esearchresult" in search_data and "idlist" in search_data["esearchresult"] and search_data["esearchresult"]["idlist"]:
+                protein_id = search_data["esearchresult"]["idlist"][0]
+                print(f"  [API] Protein ID for {protein_name}: {protein_id}")
+        except requests.exceptions.RequestException as e:
+            print(f"  [API ERROR] Failed to search for protein ID: {e}")
+        except (json.JSONDecodeError, KeyError, IndexError) as e:
+            print(f"  [API ERROR] Failed to parse protein search data: {e}")
+
+        if protein_id:
+            # Passo 2: Buscar sequência FASTA e obter comprimento
+            fetch_url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=protein&id={protein_id}&rettype=fasta&retmode=text"
+            try:
+                response = requests.get(fetch_url, timeout=10)
+                response.raise_for_status()
+                fasta_sequence = response.text
+                # A sequência FASTA começa com '>' e a próxima linha é a sequência de aminoácidos
+                lines = fasta_sequence.strip().split('\n')
+                if len(lines) > 1:
+                    sequence = "".join(line.strip() for line in lines[1:] if not line.startswith('>'))
+                    protein_length = len(sequence)
+                    print(f"  [API] Protein {protein_name} length fetched: {protein_length}")
+                    return protein_length
+            except requests.exceptions.RequestException as e:
+                print(f"  [API ERROR] Failed to fetch protein sequence: {e}")
+            except Exception as e:
+                print(f"  [API ERROR] Failed to parse protein sequence: {e}")
+        return None # Retorna None em caso de falha
+
+    def _fetch_real_material_property(self, material_name: str = "Iron") -> Optional[Dict[str, float]]:
+        """
+        Busca propriedades de um material (ex: Ferro) do PubChem PUG REST API.
+        """
+        url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{material_name}/property/Density,MeltingPoint/JSON"
+        try:
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            if data and "PropertyTable" in data and "Properties" in data["PropertyTable"] and data["PropertyTable"]["Properties"]:
+                properties = data["PropertyTable"]["Properties"][0]
+                density = properties.get("Density")
+                melting_point = properties.get("MeltingPoint")
+                
+                fetched_properties = {}
+                if density is not None:
+                    fetched_properties['Density'] = float(density)
+                if melting_point is not None:
+                    fetched_properties['MeltingPoint'] = float(melting_point)
+
+                print(f"  [API] Material {material_name} properties fetched: {fetched_properties}")
+                return fetched_properties
+        except requests.exceptions.RequestException as e:
+            print(f"  [API ERROR] Failed to fetch material properties: {e}")
+        except (json.JSONDecodeError, KeyError, IndexError, ValueError) as e:
+            print(f"  [API ERROR] Failed to parse material data: {e}")
+        return None # Retorna None em caso de falha
+
+    def _fetch_real_climate_data_co2(self) -> Optional[float]:
+        """
+        Simula a busca de um nível real de CO2.
+        APIs gratuitas e diretas para dados históricos de CO2 com alta resolução são limitadas.
+        Aqui, vamos usar um valor 'fixo' atual e logar a intenção.
+        Em um ambiente real, esta função usaria uma API como NOAA ESRL ou similar (que geralmente exigem API keys).
+        Exemplo de API real (necessita chave): https://www.ncdc.noaa.gov/cdo-web/webservices/v2#data
+        """
+        print("  [API] Simulating fetch of real CO2 level. (Nota: APIs reais para dados históricos de CO2 geralmente exigem chaves ou são complexas de acessar diretamente sem bibliotecas).")
+        # Valor de CO2 aproximado atual em partes por milhão (ppm) - Junho de 2025
+        # Fonte: https://www.co2.earth/ (valor aproximado, varia diariamente)
+        return 427.0 # ppm
+        # Para um exemplo mais dinâmico, se houvesse uma API simples e gratuita para histórico.
+    
+    def execute_research_cycle(self):
+        """
+        Executa um ciclo completo de pesquisa, incluindo seleção de DNA,
+        execução de pesquisas, avaliação, evolução do pool de DNA e registro no ledger.
+        """
+        print(f"\n--- Iniciando Época de Pesquisa {self.current_epoch} ---")
+        
+        # 1. Seleciona o CosmicDNA que será usado para a pesquisa nesta época.
+        research_dna = self._select_research_dna()
+        print(f"DNA selecionado para pesquisa (Fingerprint: {research_dna.fingerprint[:8]}...)")
+        
+        # 2. Executa as pesquisas em paralelo em múltiplos domínios, influenciadas pelo DNA.
+        results = self._parallel_research_execution(research_dna)
+        
+        # 3. Avalia e integra os resultados de todas as pesquisas para uma métrica combinada.
+        combined_metric = self._evaluate_results(results)
+        print(f"Métrica Combinada da Época: {combined_metric:.4f}")
+        
+        # 4. Atualiza o pool de DNA com base no desempenho do DNA desta época.
+        self._evolve_dna_pool(combined_metric)
+        print(f"Pool de DNA evoluído. Melhor Fitness: {max(self.dna_pool, key=lambda x: x.fitness_score).fitness_score:.4f}")
+        
+        # 5. Registra o bloco de pesquisa no ledger distribuído (blockchain simplificada).
+        self._record_research_block(results, research_dna, combined_metric)
+        print("Pesquisa registrada no ledger.")
+        
+        self.current_epoch += 1 # Avança para a próxima época.
+    
+    def _select_research_dna(self) -> CosmicDNA:
+        """
+        Seleciona um CosmicDNA do pool para realizar a pesquisa.
+        Usa uma lógica probabilística: 70% de chance de escolher o DNA com melhor fitness,
+        e 30% de chance de escolher um DNA aleatoriamente para promover a exploração.
+        """
+        # Simula a probabilidade de seleção.
+        random_choice_for_dna = random.choices([0, 1], weights=[0.7, 0.3], k=1)[0] # 0 para melhor, 1 para aleatório.
+        
+        if not self.dna_pool: # Caso o pool esteja vazio (situação rara após inicialização).
+            # Cria e retorna um novo DNA com o fitness inicial positivo.
+            return CosmicDNA(self._initialize_dna_pool(1)[0].genes, fitness_score=0.1) 
+        
+        if random_choice_for_dna == 0 and len(self.dna_pool) > 1: # Seleciona o DNA com o melhor fitness.
+            # Ordena por fitness score (decrescente) e pega o primeiro.
+            return sorted(self.dna_pool, key=lambda x: x.fitness_score, reverse=True)[0]
+        else: # Seleciona um DNA aleatoriamente para promover a diversidade e exploração.
+            return random.choice(self.dna_pool)
+    
+    def _parallel_research_execution(self, dna: CosmicDNA) -> List[ResearchResult]:
+        """
+        Executa as simulações de pesquisa em todos os domínios definidos.
+        Os parâmetros de cada módulo são adaptados com base nos genes do DNA de pesquisa.
+        NOVAS: Agora integra chamadas a APIs reais para alguns domínios.
+        """
+        results: List[ResearchResult] = []
+        
+        # Parâmetros de DNA genéricos para influenciar a pesquisa
+        exploration_rate = dna.genes.get('exploration_rate', 0.5)
+        risk_tolerance = dna.genes.get('risk_tolerance', 0.5)
+        innovation_bias = dna.genes.get('innovation_bias', 0.5)
+
+        # === Cosmologia ===
+        # Para Cosmologia, usaremos um h0 simulado que o DNA tenta otimizar.
+        # APIs de dados cosmológicos diretos são mais complexas ou exigem credenciais.
+        cosmo_params = {
+            'h0': 67.8 + dna.genes.get('cosmo_h0_bias', 0) * innovation_bias,
+            'omega_m': 0.3 + risk_tolerance * 0.1,
+            'h0_real_data_noise': max(0.1, 1.0 - exploration_rate) # Menos ruído se mais exploração
+        }
+        # A simulação de h(z) pode agora ser 'ancorada' a um valor de referência real se houver.
+        # Por exemplo, poderíamos tentar buscar o último valor de h0 medido do Planck ou outros.
+        # Por simplicidade e ausência de API direta gratuita, o real_h0 aqui é conceitual.
+        # Se tivéssemos um endpoint REST simples para "hubble_constant_latest_measurement", usaríamos:
+        # real_h0_val = self._fetch_real_cosmology_constant() # Exemplo conceitual de chamada
+        # metrics_cosmo = self.cosmology_module.run_simulation(real_h0=real_h0_val)
+        metrics_cosmo = self.cosmology_module.run_simulation()
+        results.append(ResearchResult(
+            domain=ResearchDomain.COSMOLOGY, metrics=metrics_cosmo,
+            parameters=cosmo_params, timestamp=datetime.now(), dna_fingerprint=dna.fingerprint
+        ))
+        print(f"  Cosmology Research Done. Metrics: {metrics_cosmo}")
+
+        # === Exoplanetas (INTEGRAÇÃO REAL DE API) ===
+        real_exoplanet_count = self._fetch_real_exoplanet_count()
+        exo_params = {
+            'star_temp': 4000 + dna.genes.get('exo_star_temp_bias', 0) * exploration_rate,
+            'planet_dist': 0.5 + risk_tolerance * 0.2
+        }
+        metrics_exo = self.exoplanets_module.run_simulation(real_exoplanet_count=real_exoplanet_count)
+        results.append(ResearchResult(
+            domain=ResearchDomain.EXOPLANETS, metrics=metrics_exo,
+            parameters=exo_params, timestamp=datetime.now(), dna_fingerprint=dna.fingerprint
+        ))
+        print(f"  Exoplanets Research Done. Metrics: {metrics_exo}")
+
+        # === Criptografia Quântica ===
+        # APIs para dados de criptografia quântica em tempo real são raros e geralmente proprietários.
+        # Manteremos a simulação clássica por enquanto.
+        metrics_qc = self.quantum_crypto_module.test_protocol("BB84")
+        results.append(ResearchResult(
+            domain=ResearchDomain.QUANTUM_CRYPTO, metrics=metrics_qc,
+            parameters={'protocol_type': "BB84"}, timestamp=datetime.now(), dna_fingerprint=dna.fingerprint
+        ))
+        print(f"  Quantum Crypto Research Done. Metrics: {metrics_qc}")
+
+        # === Biologia Computacional (INTEGRAÇÃO REAL DE API) ===
+        # Buscar um comprimento de proteína real (ex: Insulina)
+        real_protein_length = self._fetch_real_protein_info(protein_name="Insulin")
+        comp_bio_params = {
+            'protein_length': int(50 + dna.genes.get('compbio_protein_len_bias', 0)),
+            'hydrophobicity': 0.5 + innovation_bias * 0.1
+        }
+        metrics_cb = self.comp_bio_module.simulate_protein_folding(real_protein_length=real_protein_length)
+        results.append(ResearchResult(
+            domain=ResearchDomain.COMPUTATIONAL_BIOLOGY, metrics=metrics_cb,
+            parameters=comp_bio_params, timestamp=datetime.now(), dna_fingerprint=dna.fingerprint
+        ))
+        print(f"  Computational Biology Research Done. Metrics: {metrics_cb}")
+        
+        # === Ciência dos Materiais (INTEGRAÇÃO REAL DE API) ===
+        # Buscar propriedades reais do Ferro
+        real_material_props = self._fetch_real_material_property(material_name="Iron")
+        materials_comp = { # A composição simulada ainda pode influenciar como a IA "entende" o material real
+            'iron': dna.genes.get('material_comp_iron', 0.5),
+            'carbon': dna.genes.get('material_comp_carbon', 0.5),
+            'alloy_element': 1.0 - (dna.genes.get('material_comp_iron', 0.5) + dna.genes.get('material_comp_carbon', 0.5))
+        }
+        materials_comp['alloy_element'] = max(0.01, materials_comp['alloy_element'])
+        metrics_ms = self.materials_module.simulate_material(real_properties=real_material_props)
+        results.append(ResearchResult(
+            domain=ResearchDomain.MATERIALS_SCIENCE, metrics=metrics_ms,
+            parameters=materials_comp, timestamp=datetime.now(), dna_fingerprint=dna.fingerprint
+        ))
+        print(f"  Materials Science Research Done. Metrics: {metrics_ms}")
+
+        # === Modelagem Climática (INTEGRAÇÃO CONCEITUAL DE API) ===
+        # Para CO2, usaremos um valor atual fixo para demonstração, pois APIs de dados históricos
+        # de longo prazo geralmente requerem chaves ou são mais complexas.
+        real_co2_level = self._fetch_real_climate_data_co2() # Simulação de busca
+        climate_params = {
+            'co2_emissions_factor': max(0.1, min(1.0, dna.genes.get('climate_co2_bias', 0.5) + risk_tolerance * 0.2)),
+            'albedo': max(0.1, min(0.9, innovation_bias))
+        }
+        metrics_cm = self.climate_module.run_climate_simulation(real_co2_level=real_co2_level)
+        results.append(ResearchResult(
+            domain=ResearchDomain.CLIMATE_MODELING, metrics=metrics_cm,
+            parameters=climate_params, timestamp=datetime.now(), dna_fingerprint=dna.fingerprint
+        ))
+        print(f"  Climate Modeling Research Done. Metrics: {metrics_cm}")
+
+        return results
+    
+    def _evaluate_results(self, results: List[ResearchResult]) -> float:
+        """
+        Avalia os resultados de todas as pesquisas da época e calcula uma "métrica combinada".
+        Esta métrica é uma média ponderada das métricas de cada domínio, indicando a qualidade geral da pesquisa.
+        """
+        if not results: # Retorna 0 se não houver resultados.
+            return 0.0
+        
+        # Pesos para cada domínio de pesquisa, ajustáveis conforme a importância desejada.
+        weights = {
+            ResearchDomain.COSMOLOGY: 1.2,
+            ResearchDomain.EXOPLANETS: 1.0,
+            ResearchDomain.QUANTUM_CRYPTO: 1.5,
+            ResearchDomain.COMPUTATIONAL_BIOLOGY: 1.3,
+            ResearchDomain.MATERIALS_SCIENCE: 1.1,
+            ResearchDomain.CLIMATE_MODELING: 1.4
+        }
+        
+        total_weighted_score = 0.0
+        total_weight = 0.0
+        for result in results:
+            weight = weights.get(result.domain, 1.0) # Obtém o peso para o domínio ou usa 1.0 por padrão.
+            
+            # Soma das métricas individuais dentro de um domínio.
+            domain_score_sum = sum(result.metrics.values())
+            
+            # Calcula a média do score do domínio.
+            domain_average_score = domain_score_sum / len(result.metrics) if result.metrics else 0.0
+
+            total_weighted_score += domain_average_score * weight
+            total_weight += weight
+        
+        # A métrica combinada final é a média ponderada.
+        return total_weighted_score / total_weight if total_weight > 0 else 0.0
+    
+    def _evolve_dna_pool(self, combined_metric: float):
+        """
+        Evolui o pool de CosmicDNA com base no desempenho da pesquisa.
+        O DNA que gerou o último bloco tem seu fitness atualizado.
+        Os DNAs com menor fitness são removidos e novos DNAs mutados são adicionados.
+        """
+        # Obtém o fingerprint do DNA que minerou o último bloco para recompensá-lo.
+        last_block_dna_fp = None
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute("SELECT dna_fingerprint FROM research_blocks ORDER BY block_id DESC LIMIT 1")
+            result = cursor.fetchone()
+            if result:
+                last_block_dna_fp = result[0]
+        except Exception as e:
+            print(f"AVISO: Não foi possível obter o fingerprint do último DNA minerador para evolução: {e}")
+            
+        # Atualiza o fitness dos DNAs no pool.
+        for dna in self.dna_pool:
+            if dna.fingerprint == last_block_dna_fp: # Recompensa o DNA que gerou o último bloco.
+                # O fitness é uma combinação do fitness anterior e da nova métrica combinada.
+                dna.fitness_score = dna.fitness_score * 0.5 + combined_metric * 0.5
+            else:
+                dna.fitness_score *= 0.9 # Fitness dos DNAs não usados decai um pouco.
+        
+        # Seleção e mutação para a próxima geração do pool.
+        self.dna_pool.sort(key=lambda x: -x.fitness_score) # Ordena por fitness decrescente.
+        
+        # Mantém a metade superior do pool (garantindo um mínimo de 2 DNAs).
+        new_pool = self.dna_pool[:max(2, len(self.dna_pool) // 2)]
+        
+        target_pool_size = 10 # Mantém o pool em um tamanho constante.
+        num_mutations_needed = target_pool_size - len(new_pool) - 1 # Calcula quantos novos DNAs mutados são necessários.
+        
+        if new_pool: # Garante que haja pais para mutar.
+            for _ in range(num_mutations_needed):
+                # Seleciona um pai entre os melhores para mutar.
+                parent = random.choice(new_pool[:max(1, len(new_pool) // 2)])
+                new_pool.append(parent.mutate())
+        else: # Se o pool estiver vazio (caso de robustez).
+            new_pool.extend(self._initialize_dna_pool(num_mutations_needed))
+
+        # Adiciona um novo DNA completamente aleatório para manter a diversidade e exploração.
+        # Este novo DNA já é criado com um fitness inicial positivo (definido em _initialize_dna_pool).
+        new_pool.append(self._initialize_dna_pool(1)[0])
+
+        self.dna_pool = new_pool[:target_pool_size] # Limita o tamanho do pool ao alvo.
+        
+        # Incrementa a geração para todos os DNAs que sobreviveram ou são novos no pool.
+        for dna in self.dna_pool:
+            dna.generation += 1
+
+    def _record_research_block(self, results: List[ResearchResult], 
+                                  dna: CosmicDNA, metric: float):
+        """
+        Registra um "bloco de pesquisa" no ledger (banco de dados SQLite).
+        Cada bloco contém um hash do bloco anterior, um hash dos resultados da pesquisa,
+        o fingerprint do DNA, a métrica combinada, timestamp, nonce e o hash final do bloco.
+        Este é um análogo simplificado de um bloco de blockchain.
+        """
+        # Gera um hash dos resultados detalhados da pesquisa.
+        results_data_for_hash = []
+        for r in results:
+            res_dict = {
+                'domain': r.domain.name,
+                'metrics': r.metrics,
+                'parameters': r.parameters,
+                'timestamp': r.timestamp.isoformat(),
+                'dna_fingerprint': r.dna_fingerprint
+            }
+            results_data_for_hash.append(res_dict)
+
+        results_hash = hashlib.sha3_256(
+            json.dumps(results_data_for_hash, sort_keys=True).encode()
+        ).hexdigest()
+        
+        # Obtém o hash do último bloco na cadeia para garantir a ordem.
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "SELECT block_hash FROM research_blocks ORDER BY block_id DESC LIMIT 1"
+        )
+        last_hash_row = cursor.fetchone()
+        # "0" * 64 é o hash inicial para o primeiro bloco.
+        previous_hash = last_hash_row[0] if last_hash_row else "0" * 64
+        
+        # Executa a Prova de Trabalho (PoW) clássica para encontrar o nonce e o hash do bloco.
+        print("  Iniciando Prova de Trabalho (PoW) Clássica...")
+        nonce, block_hash = self._classical_pow(previous_hash, results_hash)
+        print(f"  PoW Concluída. Nonce: {nonce}, Block Hash: {block_hash[:10]}...")
+        
+        # Insere os dados do novo bloco na tabela 'research_blocks'.
+        cursor.execute('''
+            INSERT INTO research_blocks 
+            (previous_hash, research_hash, dna_fingerprint, combined_metric, timestamp, nonce, block_hash)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (previous_hash, results_hash, dna.fingerprint, metric, datetime.now(), nonce, block_hash))
+        
+        block_id = cursor.lastrowid # Obtém o ID do bloco recém-inserido.
+        
+        # Insere os resultados detalhados de cada pesquisa na tabela 'research_results'.
+        for result in results:
+            cursor.execute('''
+                INSERT INTO research_results 
+                (block_id, domain, metrics, parameters)
+                VALUES (?, ?, ?, ?)
+            ''', (
+                block_id,
+                result.domain.name, # Converte o Enum para string.
+                json.dumps(result.metrics), # Converte dicionários para string JSON.
+                json.dumps(result.parameters)
+            ))
+        
+        self.conn.commit() # Salva as mudanças.
+        print(f"  Bloco {block_id} de Pesquisa registrado com sucesso.")
+    
+    def _classical_pow(self, previous_hash: str, results_hash: str) -> Tuple[int, str]:
+        """
+        Executa uma Prova de Trabalho (PoW) puramente clássica.
+        Encontra um 'nonce' (número) que, quando combinado com os hashes do bloco anterior
+        e dos resultados, gera um hash final que começa com um número específico de zeros
+        (definindo a dificuldade).
+        """
+        nonce = 0
+        while True:
+            # Concatena todos os dados relevantes para o hash do bloco.
+            block_content = f"{previous_hash}{results_hash}{nonce}"
+            # Calcula o hash SHA3-256.
+            test_hash = hashlib.sha3_256(
+                block_content.encode()
+            ).hexdigest()
+            
+            # Dificuldade da PoW: O número de zeros iniciais que o hash deve ter.
+            # '000' é fácil para testes; '0000', '00000' aumentam a dificuldade e o tempo de mineração.
+            difficulty_prefix = "000" 
+            if test_hash.startswith(difficulty_prefix):
+                return nonce, test_hash # Retorna o nonce e o hash válido.
+            nonce += 1
+            # Opcional: Adicionar um limite de nonce para depuração, para evitar loops infinitos.
+            # if nonce > 1_000_000:
+            #     raise Exception("Não foi possível encontrar nonce em tempo razoável.")
+
+class QuantumIncentiveSystem:
+    """
+    Sistema responsável por gerenciar a economia do token AEON,
+    incluindo distribuição de recompensas pela pesquisa, staking e saldos dos participantes.
+    """
+    MAX_TOKEN_SUPPLY = 100_000_000.0 # Define o limite máximo de tokens AEON (100 milhões).
+
+    def __init__(self, research_engine: ResearchEngine):
+        self.engine = research_engine   # Referência ao ResearchEngine para acessar o ledger de pesquisa.
+        self.token_supply = 0.0         # Contador do total de tokens AEON emitidos.
+        self.staking_pool = 0.0         # Total de tokens atualmente em staking.
+        self._init_incentive_db()       # Inicializa o banco de dados para incentivos e saldos.
+        self.wallets: Dict[str, float] = {} # Dicionário em memória para simular saldos de carteira (usado por GET_BALANCE antes da consulta ao DB).
+
+    def _init_incentive_db(self):
+        """
+        Inicializa o banco de dados SQLite para registrar recompensas, stakes e saldos dos participantes.
+        """
+        self.conn = sqlite3.connect('aeoncosma_incentives.db')
+        self.conn.execute('''
+            CREATE TABLE IF NOT EXISTS rewards (
+                reward_id INTEGER PRIMARY KEY,
+                epoch INTEGER NOT NULL,
+                dna_fingerprint TEXT NOT NULL,
+                amount REAL NOT NULL,
+                metric_score REAL NOT NULL,
+                timestamp DATETIME NOT NULL
+            )
+        ''')
+        self.conn.execute('''
+            CREATE TABLE IF NOT EXISTS stakes (
+                stake_id INTEGER PRIMARY KEY,
+                participant_fingerprint TEXT NOT NULL,
+                amount REAL NOT NULL,
+                start_time DATETIME NOT NULL,
+                end_time DATETIME
+            )
+        ''')
+        # Tabela para saldos permanentes, mais robusta que um dicionário em memória.
+        self.conn.execute('''
+            CREATE TABLE IF NOT EXISTS balances (
+                participant_fingerprint TEXT PRIMARY KEY,
+                balance REAL NOT NULL DEFAULT 0.0
+            )
+        ''')
+        self.conn.commit()
+
+    def _update_balance(self, participant_fingerprint: str, amount: float):
+        """
+        Atualiza o saldo de um participante no banco de dados.
+        Se o participante não existe, cria-o com o valor. Caso contrário, ajusta o saldo.
+        """
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            INSERT INTO balances (participant_fingerprint, balance)
+            VALUES (?, ?)
+            ON CONFLICT(participant_fingerprint) DO UPDATE SET balance = balance + ?
+        ''', (participant_fingerprint, amount, amount))
+        self.conn.commit()
+
+    def get_balance(self, participant_fingerprint: str) -> float:
+        """
+        Obtém o saldo atual de um participante no banco de dados.
+        Retorna 0.0 se o participante não tiver saldo registrado.
+        """
+        cursor = self.conn.cursor()
+        cursor.execute('SELECT balance FROM balances WHERE participant_fingerprint = ?', (participant_fingerprint,))
+        result = cursor.fetchone()
+        return result[0] if result else 0.0
+
+    def register_participant_for_incentive(self, dna_fingerprint: str):
+        """
+        Registra um DNA/participante no sistema de incentivo.
+        Isso garante que o participante tenha um registro de saldo, mesmo que seja zero inicialmente.
+        """
+        if self.get_balance(dna_fingerprint) == 0.0: # Verifica se o participante já tem saldo (se não for zero).
+            self._update_balance(dna_fingerprint, 0.0) # Inicializa com saldo zero.
+            print(f"[Incentive] Participante {dna_fingerprint[:8]}... registrado para incentivos.")
+        else:
+            print(f"[Incentive] Participante {dna_fingerprint[:8]}... já está no sistema de incentivos.")
+
+
+    def distribute_research_rewards(self):
+        """
+        Distribui recompensas pelo último ciclo de pesquisa registrado no ledger principal.
+        As recompensas são baseadas na 'combined_metric' da pesquisa e creditadas ao DNA
+        que gerou o bloco. A emissão é controlada pelo 'MAX_TOKEN_SUPPLY'.
+        """
+        # Obtém a métrica combinada e o fingerprint do DNA do último bloco minerado.
+        last_block = self.engine.conn.execute('''
+            SELECT combined_metric, dna_fingerprint FROM research_blocks 
+            ORDER BY block_id DESC LIMIT 1
+        ''').fetchone()
+        
+        if not last_block:
+            print("[Incentive] Nenhum bloco de pesquisa encontrado para recompensar.")
+            return
+        
+        metric, dna_fingerprint = last_block
+        
+        # --- Controle de Emissão de Tokens (Hard Cap de 100M) ---
+        if self.token_supply >= self.MAX_TOKEN_SUPPLY:
+            print("[Incentive] ATENÇÃO: Limite máximo de tokens AEON atingido ou excedido. Nenhuma nova recompensa será distribuída.")
+            return # Interrompe a distribuição se o limite foi atingido.
+
+        base_reward = 100.0 # Tokens base por bloco.
+        # A recompensa escala com a qualidade da pesquisa (métrica combinada).
+        reward_amount = base_reward * (1 + metric) 
+        
+        # Ajusta a recompensa para não exceder o limite máximo de tokens.
+        if self.token_supply + reward_amount > self.MAX_TOKEN_SUPPLY:
+            reward_amount = self.MAX_TOKEN_SUPPLY - self.token_supply
+            if reward_amount <= 0: # Caso já tenha excedido ou esteja muito próximo de zero.
+                print("[Incentive] ATENÇÃO: Limite máximo de tokens AEON atingido ou excedido. Nenhuma nova recompensa será distribuída.")
+                return
+
+        # Registra a recompensa no banco de dados de incentivos.
+        self.conn.execute('''
+            INSERT INTO rewards 
+            (epoch, dna_fingerprint, amount, metric_score, timestamp)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (
+            self.engine.current_epoch,
+            dna_fingerprint,
+            reward_amount,
+            metric,
+            datetime.now()
+        ))
+        
+        # Atualiza o saldo do participante que gerou o DNA.
+        self._update_balance(dna_fingerprint, reward_amount)
+        self.token_supply += reward_amount # Atualiza o suprimento total de tokens.
+        self.conn.commit()
+        print(f"[Incentive] Recompensa de {reward_amount:.4f} tokens distribuída para {dna_fingerprint[:8]}... (Métrica: {metric:.4f})")
+
+    def stake_tokens(self, participant_fingerprint: str, amount: float):
+        """
+        Permite que um participante faça staking de tokens.
+        Tokens em staking contribuem para a segurança ou governança do sistema.
+        """
+        current_balance = self.get_balance(participant_fingerprint)
+        if current_balance < amount:
+            print(f"[Incentive] ERRO: Saldo insuficiente para stake. Saldo: {current_balance:.2f}, Tentativa de stake: {amount:.2f}")
+            return False
+        
+        # Registra o stake no banco de dados.
+        self.conn.execute('''
+            INSERT INTO stakes (participant_fingerprint, amount, start_time, end_time)
+            VALUES (?, ?, ?, NULL)
+        ''', (participant_fingerprint, amount, datetime.now()))
+        self._update_balance(participant_fingerprint, -amount) # Remove tokens do saldo disponível.
+        self.staking_pool += amount # Adiciona à pool de staking.
+        self.conn.commit()
+        print(f"[Incentive] {amount:.2f} tokens em stake por {participant_fingerprint[:8]}...")
+        return True
+
+    def unstake_tokens(self, participant_fingerprint: str, amount: float):
+        """
+        Permite que um participante retire tokens do staking.
+        (Simplificado: Em um sistema real, haveria períodos de bloqueio/desbloqueio).
+        """
+        # Verifica a quantidade total que o participante tem em stake.
+        staked_amount_query = self.conn.execute('''
+            SELECT SUM(amount) FROM stakes 
+            WHERE participant_fingerprint = ? AND end_time IS NULL
+        ''', (participant_fingerprint,)).fetchone()[0] or 0.0
+
+        if staked_amount_query < amount:
+            print(f"[Incentive] ERRO: {participant_fingerprint[:8]}... não tem {amount:.2f} tokens em stake para retirar. Atualmente em stake: {staked_amount_query:.2f}")
+            return False
+
+        # Marca o stake como finalizado no banco de dados.
+        # LIMIT 1 é uma simplificação; idealmente você gerencia stakes por ID.
+        self.conn.execute('''
+            UPDATE stakes SET end_time = ? 
+            WHERE participant_fingerprint = ? AND end_time IS NULL LIMIT 1
+        ''', (datetime.now(), participant_fingerprint))
+
+        self._update_balance(participant_fingerprint, amount) # Devolve tokens ao saldo disponível.
+        self.staking_pool -= amount # Remove da pool de staking.
+        self.conn.commit()
+        print(f"[Incentive] {amount:.2f} tokens retirados do stake por {participant_fingerprint[:8]}...")
+        return True
+
+
+##############################################
+# INTERPRETADOR DSL (Domain Specific Language)
+# Permite controlar o sistema AeonCosma através de comandos de texto.
+##############################################
+
+def run_dsl_script(script: str, research_engine: ResearchEngine, incentive_system: QuantumIncentiveSystem):
+    """
+    Interpreta um script DSL simples, linha por linha, para controlar
+    o AeonCosma Engine e o Quantum Incentive System.
+    """
+    for line in script.splitlines():
+        line = line.strip() # Remove espaços em branco e quebras de linha.
+        if not line or line.startswith("#"): # Ignora linhas vazias ou comentários.
+            continue
+        tokens = line.split() # Divide a linha em tokens (comando e argumentos).
+        command = tokens[0]   # O primeiro token é o comando.
+        args = tokens[1:]     # Os restantes são argumentos.
+        
+        print(f"\n--- Executando Comando DSL: {command} ---")
+
+        if command == "RUN_EPOCH":
+            research_engine.execute_research_cycle()
+            incentive_system.distribute_research_rewards()
+        elif command == "GET_BALANCE":
+            if args:
+                dna_fingerprint = args[0]
+                balance = incentive_system.get_balance(dna_fingerprint)
+                print(f"Saldo para {dna_fingerprint[:8]}...: {balance:.4f} tokens.")
+            else:
+                print("ERRO: GET_BALANCE requer um fingerprint de DNA. Ex: GET_BALANCE <fingerprint>")
+        elif command == "REGISTER_PARTICIPANT":
+            if args:
+                dna_fingerprint = args[0]
+                incentive_system.register_participant_for_incentive(dna_fingerprint)
+            else:
+                print("ERRO: REGISTER_PARTICIPANT requer um fingerprint de DNA. Ex: REGISTER_PARTICIPANT <fingerprint>")
+        elif command == "STAKE_TOKENS":
+            if len(args) == 2:
+                dna_fingerprint = args[0]
+                try:
+                    amount = float(args[1])
+                    incentive_system.stake_tokens(dna_fingerprint, amount)
+                except ValueError:
+                    print("ERRO: O valor do stake deve ser um número. Ex: STAKE_TOKENS <fingerprint> 100.0")
+            else:
+                print("ERRO: STAKE_TOKENS requer um fingerprint de DNA e um valor. Ex: STAKE_TOKENS <fingerprint> 100.0")
+        elif command == "UNSTAKE_TOKENS":
+            if len(args) == 2:
+                dna_fingerprint = args[0]
+                try:
+                    amount = float(args[1])
+                    incentive_system.unstake_tokens(dna_fingerprint, amount)
+                except ValueError:
+                    print("ERRO: O valor do unstake deve ser um número. Ex: UNSTAKE_TOKENS <fingerprint> 50.0")
+            else:
+                print("ERRO: UNSTAKE_TOKENS requer um fingerprint de DNA e um valor. Ex: UNSTAKE_TOKENS <fingerprint> 50.0")
+        elif command == "VIEW_LEDGER":
+            cursor = research_engine.conn.execute("SELECT * FROM research_blocks ORDER BY block_id ASC")
+            blocks = cursor.fetchall()
+            print("\n--- Conteúdo do Research Ledger (Blocos) ---")
+            for block in blocks:
+                print(f"Block ID: {block[0]}, Prev Hash: {block[1][:8]}..., Research Hash: {block[2][:8]}..., DNA: {block[3][:8]}..., Metric: {block[4]:.4f}, Time: {block[5]}, Nonce: {block[6]}, Block Hash: {block[7][:8]}...")
+            print("--- Fim do Ledger ---")
+        elif command == "VIEW_REWARDS":
+            cursor = incentive_system.conn.execute("SELECT * FROM rewards ORDER BY reward_id ASC")
+            rewards = cursor.fetchall()
+            print("\n--- Conteúdo do Rewards Ledger ---")
+            for reward in rewards:
+                print(f"Reward ID: {reward[0]}, Epoch: {reward[1]}, DNA: {reward[2][:8]}..., Amount: {reward[3]:.4f}, Metric: {reward[4]:.4f}, Time: {reward[5]}")
+            print("--- Fim dos Rewards ---")
+        elif command == "VIEW_STAKES":
+            cursor = incentive_system.conn.execute("SELECT * FROM stakes ORDER BY stake_id ASC")
+            stakes = cursor.fetchall()
+            print("\n--- Conteúdo do Stakes Ledger ---")
+            for stake in stakes:
+                print(f"Stake ID: {stake[0]}, Participant: {stake[1][:8]}..., Amount: {stake[2]:.4f}, Start: {stake[3]}, End: {stake[4]}")
+            print("--- Fim dos Stakes ---")
+        elif command == "EXPORT_DNA_POOL":
+            print("\n--- Pool de DNA Atual ---")
+            for i, dna in enumerate(research_engine.dna_pool):
+                print(f"DNA {i+1}: FP: {dna.fingerprint[:8]}..., Fitness: {dna.fitness_score:.4f}, Gen: {dna.generation}, Genes: {dna.genes}")
+            print("--- Fim do Pool ---")
+        else:
+            print(f"Comando DSL desconhecido: {command}")
+
+##############################################
+# PRINCIPAL: Execução do Sistema com DSL
+##############################################
+
+if __name__ == '__main__':
+    print("Iniciando o AeonCosma Engine v2.8: Sistema de Mente Sintética Evolutiva com PoR Modular (Clássico)...")
+    
+    # Excluir bancos de dados antigos para uma execução limpa (útil durante o desenvolvimento).
+    try:
+        import os
+        if os.path.exists('aeoncosma_ledger.db'):
+            os.remove('aeoncosma_ledger.db')
+            print("Banco de dados 'aeoncosma_ledger.db' removido.")
+        if os.path.exists('aeoncosma_incentives.db'):
+            os.remove('aeoncosma_incentives.db')
+            print("Banco de dados 'aeoncosma_incentives.db' removido.")
+    except Exception as e:
+        print(f"Erro ao remover bancos de dados antigos: {e}")
+
+    # Inicializa o motor de pesquisa e o sistema de incentivos.
+    research_engine = ResearchEngine()
+    incentive_system = QuantumIncentiveSystem(research_engine)
+
+    # --- Adicionando o usuário "Luiz Cruz" ao ecossistema ---
+    # Gerar um novo DNA para Luiz Cruz. Este DNA já nasce com um 'fitness_score' inicial positivo.
+    luiz_cruz_dna = CosmicDNA({
+        'exploration_rate': np.random.uniform(0.1, 0.9),
+        'risk_tolerance': np.random.uniform(0, 1),
+        'domain_focus': np.random.uniform(0, 1),
+        'innovation_bias': np.random.uniform(0.1, 0.5),
+        'cosmo_h0_bias': np.random.uniform(-5, 5),
+        'exo_star_temp_bias': np.random.uniform(-1000, 1000),
+        'compbio_protein_len_bias': np.random.uniform(-20, 20),
+        'climate_co2_bias': np.random.uniform(-0.3, 0.3),
+        'material_comp_iron': np.random.uniform(0.1, 0.9),
+        'material_comp_carbon': np.random.uniform(0.1, 0.9),
+    }, fitness_score=5.0) 
+    
+    # Adiciona o DNA de Luiz Cruz ao pool de DNAs do motor de pesquisa.
+    research_engine.dna_pool.append(luiz_cruz_dna)
+    print(f"\n[NOVO USUÁRIO] DNA para 'Luiz Cruz' (Fingerprint: {luiz_cruz_dna.fingerprint[:8]}...) adicionado ao pool.")
+
+    # Registra o DNA de Luiz Cruz no sistema de incentivos, garantindo que ele possa receber recompensas.
+    incentive_system.register_participant_for_incentive(luiz_cruz_dna.fingerprint)
+    
+    # Mostra o saldo inicial de tokens de Luiz Cruz.
+    print(f"Saldo inicial de 'Luiz Cruz' ({luiz_cruz_dna.fingerprint[:8]}...): {incentive_system.get_balance(luiz_cruz_dna.fingerprint):.4f} tokens.")
+
+    # --- Loop principal para execução contínua do sistema ---
+    num_epochs_to_run = None # Alterado para None para execução contínua
+    
+    current_epoch_loop = 0
+    while True:
+        if num_epochs_to_run is not None and current_epoch_loop >= num_epochs_to_run:
+            print(f"\n--- Concluídas {num_epochs_to_run} épocas de pesquisa. Encerrando o loop principal. ---")
+            break # Sai do loop após o número definido de épocas.
+
+        print(f"\n===== INÍCIO DO CICLO DE EXECUÇÃO AUTOMÁTICA (Época {current_epoch_loop}) =====")
+        
+        # Executa um ciclo completo de pesquisa, evolução do DNA e mineração de bloco.
+        research_engine.execute_research_cycle()
+        
+        # Distribui recompensas para o DNA/participante que minerou o último bloco (se o limite de tokens não foi atingido).
+        incentive_system.distribute_research_rewards()
+        
+        # Opcional: Imprime o saldo atual do DNA que recebeu a recompensa nesta época.
+        last_block_dna_fp = None
+        try:
+            cursor = research_engine.conn.cursor()
+            cursor.execute("SELECT dna_fingerprint FROM research_blocks ORDER BY block_id DESC LIMIT 1")
+            result = cursor.fetchone()
+            if result:
+                last_block_dna_fp = result[0]
+        except Exception as e:
+            print(f"AVISO: Não foi possível obter o fingerprint do último DNA minerador para exibição de saldo: {e}")
+
+        if last_block_dna_fp:
+            print(f"  Saldo atual do DNA {last_block_dna_fp[:8]}...: {incentive_system.get_balance(last_block_dna_fp):.4f} tokens.")
+
+        # Pausa para melhor visualização dos logs e para não sobrecarregar a CPU.
+        time.sleep(5) # Pausa por 5 segundos entre as épocas.
+
+        current_epoch_loop += 1
+
+    # --- Fim do Loop Principal ---
+
+    # Exemplo de DSL Script para visualização final do estado do sistema após o loop principal.
+    # Estes comandos são executados uma vez no final.
+    dsl_script_final_view = f"""
+    VIEW_LEDGER
+    VIEW_REWARDS
+    VIEW_STAKES
+    GET_BALANCE {research_engine.dna_pool[0].fingerprint}
+    GET_BALANCE {luiz_cruz_dna.fingerprint}
+    EXPORT_DNA_POOL
+    """
+    
+    print("\n--- Executando Comandos DSL Finais para Resumo ---")
+    run_dsl_script(dsl_script_final_view, research_engine, incentive_system)

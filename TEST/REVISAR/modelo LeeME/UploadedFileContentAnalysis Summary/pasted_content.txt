@@ -1,0 +1,112 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib import gridspec
+
+# Parâmetros da simulação
+n_galaxies = 50000
+z0 = 0.5
+np.random.seed(42)
+
+# Distribuição de redshift (z^2 * exp(-z/z0))
+z = np.random.gamma(shape=3, scale=z0 / 3, size=n_galaxies)
+z = z[z < 1.2]
+n_galaxies = len(z)
+
+# Magnitude i simulada
+mag_i = 18 + 4 * z + np.random.normal(0, 1.0, n_galaxies)
+mag_i = np.clip(mag_i, 15, 25)
+
+# Cor g-i simulada
+color_gi = 0.8 + 0.5 * np.tanh(2 * (z - 0.3)) + np.random.normal(0, 0.2, n_galaxies)
+
+# Massa estelar (log10)
+log_mass = 11 - 0.2 * (mag_i - 20) + np.random.normal(0, 0.3, n_galaxies)
+
+# Shear com ruído
+shear_g1 = np.random.normal(0, 0.03, n_galaxies)
+shear_g2 = np.random.normal(0, 0.03, n_galaxies)
+
+# Tamanho efetivo (arcseg)
+size_arcsec = 0.6 + 0.3 * (log_mass - 10.5) - 0.05 * (mag_i - 20) + np.random.normal(0, 0.15, n_galaxies)
+size_arcsec = np.clip(size_arcsec, 0.1, 2.5)
+
+# RA e Dec com estruturas
+ra = np.random.uniform(0, 1, n_galaxies)
+dec = np.random.uniform(0, 1, n_galaxies)
+
+# Aglomerados
+cluster_coords = [(0.3, 0.3), (0.7, 0.5), (0.5, 0.8)]
+for (cx, cy) in cluster_coords:
+    idx = np.random.choice(n_galaxies, size=int(n_galaxies * 0.03), replace=False)
+    ra[idx] = np.random.normal(cx, 0.015, len(idx))
+    dec[idx] = np.random.normal(cy, 0.015, len(idx))
+
+# Filamento
+n_filament = int(n_galaxies * 0.1)
+filament_idx = np.random.choice(n_galaxies, size=n_filament, replace=False)
+t = np.linspace(0, 1, n_filament)
+ra[filament_idx] = 0.4 + 0.2 * t + np.random.normal(0, 0.01, n_filament)
+dec[filament_idx] = 0.2 + 0.5 * t + np.random.normal(0, 0.01, n_filament)
+
+# Compilar DataFrame
+data = pd.DataFrame({
+    "z": z,
+    "mag_i": mag_i,
+    "g_i": color_gi,
+    "log_mass": log_mass,
+    "shear_g1": shear_g1,
+    "shear_g2": shear_g2,
+    "size_arcsec": size_arcsec,
+    "ra": ra,
+    "dec": dec
+})
+
+# Gráficos
+plt.figure(figsize=(20, 10))
+spec = gridspec.GridSpec(2, 3)
+
+plt.subplot(spec[0, 0])
+plt.hexbin(data["ra"], data["dec"], gridsize=100, cmap="plasma", bins='log')
+plt.title("Distribuição Angular com Estruturas (RA/Dec)")
+plt.xlabel("RA normalizado")
+plt.ylabel("Dec normalizado")
+plt.colorbar(label="log(N galáxias)")
+
+plt.subplot(spec[0, 1])
+plt.scatter(data["z"], data["size_arcsec"], s=2, alpha=0.4, color="deepskyblue")
+plt.xlabel("Redshift z")
+plt.ylabel("Tamanho efetivo (arcseg)")
+plt.title("Tamanho vs Redshift")
+
+plt.subplot(spec[0, 2])
+plt.hexbin(data["log_mass"], data["size_arcsec"], gridsize=50, cmap="inferno")
+plt.xlabel("log₁₀(M*/M☉)")
+plt.ylabel("Tamanho efetivo (arcseg)")
+plt.title("Tamanho vs Massa Estelar")
+plt.colorbar(label="N galáxias")
+
+plt.subplot(spec[1, 0])
+plt.hist(data["size_arcsec"], bins=40, color="orchid", edgecolor="black")
+plt.xlabel("Tamanho efetivo (arcseg)")
+plt.ylabel("Número de galáxias")
+plt.title("Histograma de Tamanhos")
+
+plt.subplot(spec[1, 1])
+plt.quiver(data["ra"][::400], data["dec"][::400],
+           data["shear_g1"][::400], data["shear_g2"][::400],
+           scale=0.01, width=0.0015, color="white", alpha=0.8)
+plt.title("Mapa de Shear (γ₁, γ₂)")
+plt.xlabel("RA")
+plt.ylabel("Dec")
+plt.gca().set_facecolor("black")
+
+plt.subplot(spec[1, 2])
+plt.scatter(data["mag_i"], data["log_mass"], s=2, alpha=0.4, c=data["z"], cmap="viridis")
+plt.xlabel("mag_i")
+plt.ylabel("log₁₀(M*/M☉)")
+plt.title("Magnitude i vs Massa Estelar")
+plt.colorbar(label="Redshift")
+
+plt.tight_layout()
+plt.show()

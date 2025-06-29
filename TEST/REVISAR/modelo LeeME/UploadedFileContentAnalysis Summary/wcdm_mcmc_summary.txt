@@ -1,0 +1,7 @@
+Resultados do MCMC (wCDM):
+H0 = 64.01 +12.72 / -9.16 km/s/Mpc
+Omega_m = 0.348 +0.124 / -0.106
+w = -1.311 +0.600 / -0.473
+Minimum Chi2 (at median params): 5.82
+AIC: 11.82
+BIC: 13.94

@@ -1,0 +1,44 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+
+# Parâmetros cosmológicos da tese
+H0 = 70  # Constante de Hubble (km/s/Mpc)
+Omega_m = 0.2985  # Densidade de matéria
+Omega_lambda = 0.7012  # Densidade de energia escura
+Rond_0 = 0.0198  # Energia rotacional dos SMBHs
+n = -3.00  # Expoente do termo Rond(z)
+
+# Função para calcular H(z) no modelo ΛCDM
+def H_LCDM(z):
+    return H0 * np.sqrt(Omega_m * (1 + z)**3 + Omega_lambda)
+
+# Função para calcular H(z) no modelo modificado
+def H_modificado(z):
+    return H0 * np.sqrt(Omega_m * (1 + z)**3 + Omega_lambda + Rond_0 * (1 + z)**n)
+
+# Intervalo de redshift para análise
+z_values = np.linspace(0, 3, 100)
+
+# Calculando H(z) para ambos os modelos
+H_LCDM_values = H_LCDM(z_values)
+H_mod_values = H_modificado(z_values)
+
+# Plotando comparação dos modelos
+plt.figure(figsize=(10,6))
+plt.plot(z_values, H_LCDM_values, label="Modelo ΛCDM", linestyle="--", linewidth=2)
+plt.plot(z_values, H_mod_values, label="Modelo Modificado com Rond(z)", linewidth=2)
+plt.xlabel("Redshift (z)")
+plt.ylabel("H(z) (km/s/Mpc)")
+plt.title("Comparação da Expansão Cósmica: Modelo ΛCDM vs. Modelo Modificado")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# Exibindo valores numéricos principais
+print("\nComparação de H(z) nos dois modelos:")
+print(f"{'Redshift':<10}{'H_LCDM':<15}{'H_Modificado':<15}")
+print("-" * 40)
+
+for i in range(0, len(z_values), 10):
+    print(f"{z_values[i]:<10.2f}{H_LCDM_values[i]:<15.2f}{H_mod_values[i]:<15.2f}")

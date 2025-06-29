@@ -1,0 +1,207 @@
+
+Table Name	Table Database Name	Data Column Documentation
+Planetary Systems	ps	Definitions
+Planetary Systems Composite Parameters	pscomppars	Definitions
+TESS Project Candidates	toi	Definitions
+Microlensing	ml	
+Definitions
+
+Column names mapping document between old microlensing and new ML tables (for queries created before April 2021)
+
+Stellar Hosts	stellarhosts	Definitions
+Kepler Confirmed Names	keplernames	Definitions
+K2 Confirmed Names	k2names	Definitions
+K2 Planets and Candidates	k2pandc	
+Definitions
+
+Column names mapping document (PDF) (CSV) between the new k2pandc and old k2candidates tables
+
+Atmospheric Spectroscopy
+spectra	
+This table replaced the Emission and Transmission Spectroscopy tables that were retired in July 2023.
+
+For data column definitions in the new table, see page 5 of the User Guide tab within the tool interface
+
+UKIRT	ukirttimeseries	Definitions
+KELT Time Series	kelttimeseries	Definitions
+SuperWASP Time Series	superwasptimeseries	Definitions
+System Aliases Lookup Service	
+This is not a TAP service, but it replaces the object_aliases table by providing a complete list of all names associated with a specific object that the archive recognizes. The output is a structured JSON table (example).
+
+This help document describes how to use the service.
+
+HWO ExEP Precursor Science Stars	di_stars_exep	Definitions
+Transiting Planets	TD	Definitions
+KOI Cumulative Delivery	cumulative	Definitions
+KOI Q1-Q6 Delivery	q1_q6_koi	Definitions
+KOI Q1-Q8 Delivery	q1_q8_koi	Definitions
+KOI Q1-Q12 Delivery	q1_q12_koi	Definitions
+KOI Q1-Q16 Delivery	q1_q16_koi	Definitions
+KOI Q1-Q17 DR24 Delivery	q1_q17_dr24_koi	Definitions
+KOI Q1-Q17 DR25 Delivery	q1_q17_dr25_koi	Definitions
+KOI Q1-Q17 DR25 Supplemental Delivery	q1_q17_dr25_sup_koi	Definitions
+TCE Q1-Q12 Delivery	q1_q12_tce	Definitions
+TCE Q1-Q16 Delivery	q1_q16_tce	Definitions
+TCE Q1-Q17 DR24 Delivery	q1_q17_dr24_tce	Definitions
+TCE Q1-Q17 DR25 Delivery	q1_q17_dr25_tce	Definitions
+Kepler Stellar	keplerstellar	Definitions
+Kepler Stellar Q1-Q12 Delivery	q1_q12_ks	Definitions
+Kepler Stellar Q1-Q16 Delivery	q1_q16_ks	Definitions
+Kepler Stellar Q1-Q17 DR24 Delivery	q1_q17_dr24_ks	Definitions
+Kepler Stellar Q1-Q17 DR25 Delivery	q1_q17_dr25_ks	Definitions
+Kepler Stellar DR25 Supplemental Delivery	q1_q17_dr25_sup_ks	Definitions
+Kepler Time Series	keplertimeseries	Definitions
+K2 Stellar Targets	k2targets	Definitions
+More archive tables will be transitioned to TAP in the coming months. To programmatically retrieve data from archive tables not currently supported by TAP, such as the Mission Stars table, please use the archive's existing application programming interface (API).
+
+About Table Access Protocol
+Table Access Protocol (TAP) is a recommended standard developed by the Virtual Astronomy community and now maintained by the International Virtual Observatory Alliance (IVOA). The TAP technical specification is on the IVOA website (http://www.ivoa.net/documents/TAP).
+
+The archive's TAP service uses Structured Query Language (SQL), and the output can be formatted in VOTable (votable), comma-separated values (csv), tab-separated values (tsv), or JavaScript Object Notation (JSON). You may also select output columns and perform functions on the results.
+
+
+Top
+Synchronous and Asynchronous Queries
+In a nutshell, a synchronous query runs until it completes, and then streams the results back. An asynchronous query runs in the background and gives you a place to check whether your job is done, rather than streaming results back directly.
+
+The archive's TAP service supports both synchronous and asynchronous queries, but the two tables currently supported are small enough so synchronous queries should be adequate. However, we do recommend using a TAP client when downloading large data sets (e.g., the entire Planetary Systems table) in the default VOTable format because some web browsers may struggle to display all of the data.
+
+
+Top
+Constructing Synchronous TAP Queries
+TAP is a URL-based HTTP web service, so the query can be entered directly into a web browser. TAP-compatible clients and software like TOPCAT and PyVO, and TAP+ all work with the Exoplanet Archive TAP service. A list of valid queries are given at the end of this document.
+
+Regardless of TAP client, all queries must have valid ADQL, which takes the form:
+SELECT <column list> FROM <table> WHERE <constraints>
+
+To construct a synchronous TAP query:
+
+(Required) Step 1: Start with the base service URL.
+
+For web browsers: https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=
+For clients such as TOPCAT and pyVO: https://exoplanetarchive.ipac.caltech.edu/TAP
+
+(Required) Step 2: Next, add the query argument using the required select and from ADQL statements (in this order).
+
+select specifies which columns to return. An asterisk (*) tells the system to return all columns.
+from specifies the database table.
+In the following example, the entire Planetary Systems table is returned in VOTable format:
+
+https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=select+*+from+ps
+
+Alternatively, you can name specific columns (separated with commas, no spaces) to return if you don't want the entire table. Here is a revised example that returns only data in the Planet Name (pl_name), Planet Mass (pl_masse), Right Ascension (ra) and Declination (dec) columns:.
+
+https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=select+pl_name,pl_masse,ra,dec+from+ps
+
+Note that for encoding purposes, all spaces in the SQL should be replaced with a plus (+) symbol.
+
+
+(Optional) Step 3: Add more constraints using the where clause.
+
+The where clause, though optional, allows you to include more complex constraints in your query by using AND, OR, and parentheses. Here are some examples:
+
+Enter this...	To specify this...
+dec > 0.	Planets that have a declination greater than 0 degrees
+pl_masse between 0.5 and 2.0	Planets that have a mass between 0.5 and 2.0 Earth masses
+discoverymethod = 'Radial Velocity'	Planets that were discovered by the radial velocity method
+lower(soltype) like '%25conf%25'
+
+upper(soltype) like '%25CONF%25'
+
+All planets listed as confirmed in lower-case in the soltype column of the database table
+
+All planets listed as confirmed in upper-case in the soltype column of the database table
+
+default_flag=1	Show only the default solution
+pl_rade < = 2	Planets with Earth radii less than or equal to 2 Rearth
+pl_orbper > = 1000	Planets with orbital periods greater than or equal to 1000 days
+
+
+So, our example query that returns the planet names, masses, and coordinates for all confirmed planets of about Earth size would read:
+
+https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=
+select+pl_name,pl_masse,ra,dec+from+ps+where+upper(soltype)+like+'%25CONF%25'+and+pl_masse+between+0.5+and+2.0
+
+
+(Optional) Step 4 : Specify the output file format.
+
+Unless otherwise specified, query results are automatically returned as a VOTable. Other supported formats:
+
+Format Name	Parameter
+JSON	json
+TSV	tsv
+CSV	csv
+VOTable	votable
+So, returning to our example from Step 3, we append the query to specify CSV format:
+
+https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=select+pl_name,pl_masse,ra,dec+from+ps
++where+upper(soltype)+like+'%25CONF%25'+and+pl_masse+between+0.5+and+2.0&format=csv
+
+
+Top
+Using Spatial Constraints In Queries
+TAP also allows you to include ADQL-style spatial constraints using custom functions in the WHERE clause to define a circle, box, or polygon region.
+
+In the following example, the query directs TAP to find and return all records in the Planetary Systems table where the point defined by the ra and dec columns in the database table for a circle, box, and polygon area based on the coordinates of Proxima Centauri (217.42896,-62.67947).
+
+For this shape...	Define the area as...	Using this query...
+Circle	Inside a 0.1-degree circle	https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=select+*+from+ps
++where+contains(point('icrs',ra,dec),circle('icrs',217.42896,-62.67947,0.1))=1
+Box	Same center as a circle, and a size of 0.1 x 0.1 degrees	https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=select+pl_name,ra,dec+from+ps
++where+contains(point('icrs',ra,dec),box('icrs',217.42896,-62.67947,0.1,0.1))=1
+Polygon	Give the coordinates of four corners, rather than the center	https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=select+pl_name,ra,dec+from+ps
++where+contains(point('icrs',ra,dec),polygon('icrs',217.,-62.,218.,-62.,218.,-63.,217.,-63))=1
+
+
+The spatial constraints act like any other other constraint (e.g., dec > 0.) in that they can appear mixed in with the regular relational constraints and inside AND/OR and parenthesis constructs. For more information about ADQL geometric constraints, see the IVOA document.
+
+Top
+Retrieving Table Schema
+The TAP service provides information about the tables being served, including table names, column names, and data types. To compose a query, you need to know the table names, column names, and types. The TAP_SCHEMA can be queried like the other tables in order to return information about the data tables.
+
+Some examples:
+
+Use This Query...	To Return This...
+https://exoplanetarchive.ipac.caltech.edu/TAP/tables	A comprehensive XML document of all tables, column names, and metadata available through the archive's TAP service.
+https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query= select+schema_name+from+TAP_SCHEMA.schemas
+
+Lists of available schemas (sets of tables) through TAP
+https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query= select+schema_name,table_name+from+TAP_SCHEMA.tables	A list of available tables
+https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query= select+*+from+TAP_SCHEMA.columns+%20where+table_name+like+ %27ps%27	Returns basic information on the Planetary Systems table, such as column names, column type, width, format, etc.
+Note: The PS and PSCompPars Table Data Column Definitions Document also provides this information.
+
+More information about the TAP_SCHEMA specification is in this IVOA document.
+
+
+Top
+Best Practices
+Always specify a table, i.e., select+*+from+ps or select+*+from+pscomppars
+
+Encode special characters in web queries, including plus signs (+) as %2B, %27 for a single quotation mark ( ' ), %20 for a space, and %25 for letters (especially if the first two letters are A-F, which are used for different unicode characters). Note that most web browsers will automatically encode queries entered into their search field and some utility programs, such as wget (but not curl), will do so as well.
+
+Queries must be on a single line. Line breaks in the examples given in this document are for display purposes only.
+
+Be aware of case-sensitivity: ADQL and Oracle table and column names are not case-sensitive. However, values like CONFIRMED or CANDIDATE are case-sensitive, as well as object names (e.g., "eps CrB b"). Query the TAP schema to verify capitalization, or use the upper() and lower() functions and wildcards (%25) if you're unsure about capitalization.
+
+Use a TAP client when returning large data sets. If you're downloading the entire PS or PSCompPars tables in VOTable format, your web browser may struggle to display all of the results. Try using a client like TOPCAT, pyVO, or TAP+.
+
+Top
+More Examples
+Count the total number of confirmed planets, from PS table
+
+https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=select+count(pl_name)+from+ps+where+default_flag=1&format=csv
+
+All confirmed planets found by TESS, from PS Table:
+
+https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=select+*+from+ps+where+disc_facility+=+'Transiting Exoplanet Survey Satellite (TESS)'
+
+Confirmed planets, listed alphabetically, that have been detected by transit method, from PS Table:
+
+https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=select+distinct(pl_name)+from+ps+where+tran_flag+=+1+order+by+pl_name+desc+&format=csv
+
+All Earth-sized planets (R<=1.8 Rearth) that have a mass measurement (pl_masse > 0.) from PS Table:
+
+https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=select+hostname,pl_name,pl_rade,pl_masse+from+ps+where+pl_rade+<+=+1.8+and+pl_masse+>+0
+All confirmed planets with the best mass (as identified by the archive) and their reference, and with an orbital period with semi-major axis and their references, and with more than one star in the system, and the best planet mass is less than or equal to 13, listed in order of best mass in descending order, from PSCompPars Table:
+
+https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=select+pl_name,pl_bmassj,pl_bmassj_reflink,pl_orbsmax,pl_orbsmax_reflink,sy_snum +from+pscomppars+where+sy_snum+>+1+and+pl_bmassj+<=+13+order+by+pl_bmassj+desc

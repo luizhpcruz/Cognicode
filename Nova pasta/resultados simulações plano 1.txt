@@ -1,0 +1,65 @@
+plano 1 código 1
+Resultados da Simulação de Curvatura Extrema:
+------------------------------------------------------------
+z = 0.00, Curvatura Extrema = 0.05000, Distorção da Luz = 0.05000, Lentes Gravitacionais = 0.00000
+z = 1.67, Curvatura Extrema = 0.01312, Distorção da Luz = 0.02791, Lentes Gravitacionais = 0.02051
+z = 3.34, Curvatura Extrema = 0.00344, Distorção da Luz = -0.00871, Lentes Gravitacionais = 0.02796
+z = 5.02, Curvatura Extrema = 0.00090, Distorção da Luz = 0.00031, Lentes Gravitacionais = 0.02961
+z = 6.69, Curvatura Extrema = 0.00024, Distorção da Luz = 0.00943, Lentes Gravitacionais = 0.02993
+z = 8.36, Curvatura Extrema = 0.00006, Distorção da Luz = -0.00706, Lentes Gravitacionais = 0.02999
+
+plano 1 código 2
+Resultados da Simulação do Espaço-Tempo Fractal:
+------------------------------------------------------------
+z = 0.00, Espaço-Tempo Fractal = 0.00000, Propagação da Luz = 0.00000, Dispersão Fractal = 0.00000
+z = 1.67, Espaço-Tempo Fractal = 0.01270, Propagação da Luz = 0.02749, Dispersão Fractal = 0.01146
+z = 3.34, Espaço-Tempo Fractal = 0.01713, Propagação da Luz = 0.00497, Dispersão Fractal = 0.01657
+z = 5.02, Espaço-Tempo Fractal = 0.01902, Propagação da Luz = 0.01842, Dispersão Fractal = 0.01967
+z = 6.69, Espaço-Tempo Fractal = 0.01980, Propagação da Luz = 0.02899, Dispersão Fractal = 0.02182
+z = 8.36, Espaço-Tempo Fractal = 0.02000, Propagação da Luz = 0.01287, Dispersão Fractal = 0.02342
+
+plano 1 código 3
+Resultados da Simulação de Variações na Constante de Hubble:
+------------------------------------------------------------
+z = 0.00, Variação de Hubble = 73.00000, Propagação da Luz = 0.73000, Oscilações na Expansão = 0.04000
+z = 1.67, Variação de Hubble = 72.14720, Propagação da Luz = 0.73626, Oscilações na Expansão = 0.03507
+z = 3.34, Variação de Hubble = 71.53682, Propagação da Luz = 0.70321, Oscilações na Expansão = 0.02150
+z = 5.02, Variação de Hubble = 71.09995, Propagação da Luz = 0.71040, Oscilações na Expansão = 0.00263
+z = 6.69, Variação de Hubble = 70.78727, Propagação da Luz = 0.71706, Oscilações na Expansão = -0.01689
+z = 8.36, Variação de Hubble = 70.56348, Propagação da Luz = 0.69851, Oscilações na Expansão = -0.03224
+
+plano 1 código 4
+Resultados da Simulação de Efeitos Quânticos Macroscópicos:
+------------------------------------------------------------
+z = 0.00, Flutuações Quânticas = 0.00000, Propagação da Luz = 0.00000, Modificação do Espectro = 0.04000
+z = 1.67, Flutuações Quânticas = 0.01416, Propagação da Luz = 0.02895, Modificação do Espectro = 0.03695
+z = 3.34, Flutuações Quânticas = 0.02011, Propagação da Luz = 0.00795, Modificação do Espectro = 0.03329
+z = 5.02, Flutuações Quânticas = 0.02345, Propagação da Luz = 0.02285, Modificação do Espectro = 0.03013
+z = 6.69, Flutuações Quânticas = 0.02556, Propagação da Luz = 0.03475, Modificação do Espectro = 0.02741
+z = 8.36, Flutuações Quânticas = 0.02698, Propagação da Luz = 0.01985, Modificação do Espectro = 0.02503
+
+plano 1 codigo final
+
+Resultados da Simulação de Universo com Geometria Alternativa:
+------------------------------------------------------------
+z = 0.00, Geometria = hiperbólica, Estrutura Espacial = 0.05000, Propagação da Luz = 0.00000
+z = 0.00, Geometria = elíptica, Estrutura Espacial = 0.05000, Propagação da Luz = 0.00000
+z = 0.00, Geometria = toroidal, Estrutura Espacial = 0.05000, Propagação da Luz = 0.04000
+z = 1.67, Geometria = hiperbólica, Estrutura Espacial = 0.03028, Propagação da Luz = 0.05206
+z = 1.67, Geometria = elíptica, Estrutura Espacial = 0.03028, Propagação da Luz = 0.05458
+z = 1.67, Geometria = toroidal, Estrutura Espacial = 0.03028, Propagação da Luz = 0.01136
+z = 3.34, Geometria = hiperbólica, Estrutura Espacial = 0.01833, Propagação da Luz = 0.02774
+z = 3.34, Geometria = elíptica, Estrutura Espacial = 0.01833, Propagação da Luz = -0.02022
+z = 3.34, Geometria = toroidal, Estrutura Espacial = 0.01833, Propagação da Luz = -0.04020
+z = 5.02, Geometria = hiperbólica, Estrutura Espacial = 0.01110, Propagação da Luz = 0.03940
+z = 5.02, Geometria = elíptica, Estrutura Espacial = 0.01110, Propagação da Luz = -0.03876
+z = 5.02, Geometria = toroidal, Estrutura Espacial = 0.01110, Propagação da Luz = 0.00666
+z = 6.69, Geometria = hiperbólica, Estrutura Espacial = 0.00672, Propagação da Luz = 0.04919
+z = 6.69, Geometria = elíptica, Estrutura Espacial = 0.00672, Propagação da Luz = 0.02498
+z = 6.69, Geometria = toroidal, Estrutura Espacial = 0.00672, Propagação da Luz = 0.02802
+z = 8.36, Geometria = hiperbólica, Estrutura Espacial = 0.00407, Propagação da Luz = 0.03287
+z = 8.36, Geometria = elíptica, Estrutura Espacial = 0.00407, Propagação da Luz = 0.02784
+z = 8.36, Geometria = toroidal, Estrutura Espacial = 0.00407, Propagação da Luz = -0.01555
+
+
+

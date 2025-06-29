@@ -1,0 +1,299 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp, quad
+from scipy.optimize import curve_fit
+import pandas as pd
+from getdist import plots, MCSamples
+import camb
+from astropy.cosmology import Planck18
+import corner
+
+plt.style.use('dark_background')
+plt.rcParams['font.size'] = 12
+plt.rcParams['axes.facecolor'] = '0.1'
+plt.rcParams['figure.facecolor'] = '0.15'
+
+# ================================================================
+# CLASSE COSMOLÓGICA AVANÇADA
+# ================================================================
+class AdvancedCosmology:
+    def __init__(self, H0=70, Om=0.3, Ol=0.7, w=-1.0, Ob=0.048, ns=0.965, sigma8=0.81):
+        self.H0 = H0  # km/s/Mpc
+        self.Om = Om  # Matéria total
+        self.Ol = Ol  # Energia escura
+        self.w = w    # Equação de estado
+        self.Ob = Ob  # Matéria bariônica
+        self.ns = ns  # Índice espectral
+        self.sigma8 = sigma8  # Amplitude das flutuações
+        
+        self.h = H0/100
+        self.Ok = 1 - Om - Ol  # Curvatura
+        self.Tcmb = 2.7255     # Temperatura CMB
+
+    def hubble(self, z):
+        """Parâmetro Hubble em função do redshift"""
+        return self.H0 * np.sqrt(self.Om*(1+z)**3 + self.Ok*(1+z)**2 + self.Ol*(1+z)**(3*(1+self.w)))
+
+    def age(self):
+        """Idade do universo em Gyr"""
+        def integrand(z):
+            return 1/((1+z)*self.hubble(z))
+        return quad(integrand, 0, np.inf)[0] / (3.154e17)  # Converter para Gyr
+
+    def luminosity_distance(self, z):
+        """Distância luminosa em Mpc"""
+        def integrand(z):
+            return 1/self.hubble(z)
+        dc = (3e5/self.H0) * quad(integrand, 0, z)[0]  # Distância comóvel
+        return dc * (1+z)  # Distância luminosa
+
+    def cmb_spectrum(self, lmax=2500):
+        """Gerar espectro CMB usando CAMB"""
+        pars = camb.CAMBparams()
+        pars.set_cosmology(H0=self.H0, ombh2=self.Ob*self.h**2, omch2=(self.Om-self.Ob)*self.h**2, 
+                          mnu=0.06, omk=self.Ok, tau=0.054)
+        pars.InitPower.set_params(As=2e-9, ns=self.ns)
+        pars.set_for_lmax(lmax, lens_potential_accuracy=1)
+        results = camb.get_results(pars)
+        powers = results.get_cmb_power_spectra(pars, CMB_unit='muK')
+        return powers['total'][2:lmax+1,0], powers['total'][2:lmax+1,1:4]
+
+    def matter_power_spectrum(self, z=0, k_max=10, npoints=200):
+        """Espectro de potência da matéria"""
+        pars = camb.CAMBparams()
+        pars.set_cosmology(H0=self.H0, ombh2=self.Ob*self.h**2, omch2=(self.Om-self.Ob)*self.h**2)
+        pars.InitPower.set_params(As=2e-9, ns=self.ns)
+        pars.set_matter_power(redshifts=[z], kmax=k_max)
+        results = camb.get_results(pars)
+        k, z, Pk = results.get_matter_power_spectrum(minkh=1e-4, maxkh=k_max, npoints=npoints)
+        return k, Pk[0]
+
+    def simulate_observations(self, z_range=(0.01, 2.5), n_points=100):
+        """Simular dados observacionais para validação"""
+        z = np.linspace(z_range[0], z_range[1], n_points)
+        
+        # Supernovas
+        mu = [5*np.log10(self.luminosity_distance(zi)) + 25 for zi in z]
+        mu_err = np.random.normal(0, 0.1, n_points)
+        
+        # BAO
+        dv = [(self.luminosity_distance(zi)/(1+zi)**2 * zi/self.hubble(zi))**(1/3) for zi in z]
+        dv_err = dv * 0.05
+        
+        return pd.DataFrame({
+            'z': z,
+            'mu': mu + mu_err,
+            'mu_err': np.abs(mu_err),
+            'dv': dv,
+            'dv_err': dv_err
+        })
+
+# ================================================================
+# ANÁLISE COMPARATIVA
+# ================================================================
+def compare_models(models):
+    """Comparação abrangente de múltiplos modelos cosmológicos"""
+    
+    # Configurar plot
+    fig = plt.figure(figsize=(18, 16))
+    gs = fig.add_gridspec(3, 3)
+    
+    # 1. Evolução do Hubble
+    ax1 = fig.add_subplot(gs[0, 0])
+    z = np.linspace(0, 5, 100)
+    for name, model in models.items():
+        ax1.plot(z, model.hubble(z), label=name, lw=2)
+    ax1.set_xlabel('Redshift (z)')
+    ax1.set_ylabel('H(z) [km/s/Mpc]')
+    ax1.set_title('Evolução do Parâmetro Hubble')
+    ax1.legend()
+    ax1.grid(alpha=0.3)
+    
+    # 2. Supernovas
+    ax2 = fig.add_subplot(gs[0, 1])
+    for name, model in models.items():
+        data = model.simulate_observations()
+        ax2.errorbar(data['z'], data['mu'], yerr=data['mu_err'], fmt='o', 
+                    alpha=0.7, label=f'{name} (simulado)')
+    ax2.set_xlabel('Redshift (z)')
+    ax2.set_ylabel('Módulo de Distância (μ)')
+    ax2.set_title('Teste com Supernovas Ia')
+    ax2.legend()
+    ax2.grid(alpha=0.3)
+    
+    # 3. CMB
+    ax3 = fig.add_subplot(gs[0, 2])
+    lmax = 2500
+    for name, model in models.items():
+        cl = model.cmb_spectrum(lmax)[0]
+        ell = np.arange(2, lmax+1)
+        ax3.plot(ell, cl[:lmax-1], label=name)
+    ax3.set_xscale('log')
+    ax3.set_xlabel('Multipolo (ℓ)')
+    ax3.set_ylabel('$D_\ell$ [μK²]')
+    ax3.set_title('Espectro CMB TT')
+    ax3.legend()
+    ax3.grid(alpha=0.3)
+    
+    # 4. Espectro de Potência
+    ax4 = fig.add_subplot(gs[1, 0])
+    for name, model in models.items():
+        k, Pk = model.matter_power_spectrum()
+        ax4.plot(k, Pk, label=name)
+    ax4.set_xscale('log')
+    ax4.set_yscale('log')
+    ax4.set_xlabel('k [h/Mpc]')
+    ax4.set_ylabel('P(k)')
+    ax4.set_title('Espectro de Potência da Matéria (z=0)')
+    ax4.legend()
+    ax4.grid(alpha=0.3)
+    
+    # 5. Evolução Temporal
+    ax5 = fig.add_subplot(gs[1, 1])
+    t = np.linspace(0.1, 20, 100)
+    for name, model in models.items():
+        a = [quad(lambda z: 1/((1+z)*model.hubble(z)), 0, zi)[0] for zi in t]
+        ax5.plot(t, a, label=name)
+    ax5.set_xlabel('Tempo [Gyr]')
+    ax5.set_ylabel('Fator de Escala (a)')
+    ax5.set_title('Evolução Temporal')
+    ax5.legend()
+    ax5.grid(alpha=0.3)
+    
+    # 6. Comparação de Parâmetros (corner plot)
+    ax6 = fig.add_subplot(gs[1, 2])
+    samples = []
+    for name, model in models.items():
+        # Simular cadeias MCMC (simplificado)
+        ndim = 4
+        nsamples = 1000
+        cov = np.diag([0.1, 0.1, 0.05, 0.01])**2
+        mean = [model.Om, model.Ol, model.w, model.H0/100]
+        sample = np.random.multivariate_normal(mean, cov, size=nsamples)
+        samples.append(MCSamples(samples=sample, names=['Om', 'Ol', 'w', 'h'], 
+                                labels=[f'{name} Om', f'{name} Ol', f'{name} w', f'{name} h']))
+    
+    g = plots.get_subplot_plotter(width_inch=6)
+    g.triangle_plot(samples, filled=True)
+    
+    plt.tight_layout()
+    plt.show()
+
+# ================================================================
+# VALIDAÇÃO COM DADOS REAIS
+# ================================================================
+def validate_with_real_data(models, sn_data=None, bao_data=None, cmb_data=None):
+    """Validação dos modelos contra dados observacionais"""
+    
+    if sn_data is None:
+        # Carregar dados de supernovas simulados (substituir por dados reais)
+        sn_data = {
+            'z': np.linspace(0.01, 2.3, 40),
+            'mu': Planck18.distmod(np.linspace(0.01, 2.3, 40)).value + np.random.normal(0, 0.15, 40),
+            'mu_err': np.random.uniform(0.1, 0.2, 40)
+        }
+    
+    fig, axes = plt.subplots(2, 2, figsize=(14, 12))
+    
+    # 1. Ajuste das supernovas
+    for name, model in models.items():
+        mu_model = [5*np.log10(model.luminosity_distance(z))) + 25 for z in sn_data['z']]
+        axes[0,0].plot(sn_data['z'], mu_model, label=name)
+    axes[0,0].errorbar(sn_data['z'], sn_data['mu'], yerr=sn_data['mu_err'], 
+                      fmt='ko', label='Dados')
+    axes[0,0].set_xlabel('Redshift (z)')
+    axes[0,0].set_ylabel('Módulo de Distância')
+    axes[0,0].set_title('Ajuste às Supernovas Ia')
+    axes[0,0].legend()
+    axes[0,0].grid(alpha=0.3)
+    
+    # 2. Análise de resíduos
+    for name, model in models.items():
+        mu_model = [5*np.log10(model.luminosity_distance(z))) + 25 for z in sn_data['z']]
+        residuals = sn_data['mu'] - mu_model
+        axes[0,1].plot(sn_data['z'], residuals, 'o-', label=name)
+    axes[0,1].axhline(0, color='gray', linestyle='--')
+    axes[0,1].set_xlabel('Redshift (z)')
+    axes[0,1].set_ylabel('Resíduos')
+    axes[0,1].set_title('Análise de Resíduos')
+    axes[0,1].legend()
+    axes[0,1].grid(alpha=0.3)
+    
+    # 3. Comparação com CMB (simplificado)
+    ell = np.arange(2, 2501)
+    cmb_spectrum = Planck18.cmb_spectrum(ell)[0]
+    for name, model in models.items():
+        cl = model.cmb_spectrum()[0]
+        axes[1,0].plot(ell, cl[:2500-1], label=name)
+    axes[1,0].plot(ell, cmb_spectrum, 'k--', label='Planck 2018')
+    axes[1,0].set_xscale('log')
+    axes[1,0].set_xlabel('Multipolo (ℓ)')
+    axes[1,0].set_ylabel('$D_\ell$ [μK²]')
+    axes[1,0].set_title('Comparação com CMB')
+    axes[1,0].legend()
+    axes[1,0].grid(alpha=0.3)
+    
+    # 4. Análise Bayesiana
+    params = ['Om', 'Ol', 'w', 'h']
+    chains = []
+    for name, model in models.items():
+        # Simular cadeias MCMC (em um caso real, usar cobaya/emcee)
+        ndim = len(params)
+        nsamples = 5000
+        cov = np.diag([0.02, 0.02, 0.03, 0.005])**2
+        mean = [model.Om, model.Ol, model.w, model.H0/100]
+        sample = np.random.multivariate_normal(mean, cov, size=nsamples)
+        chains.append(sample)
+    
+    # Corner plot comparativo
+    axes[1,1].axis('off')
+    corner.corner(
+        np.vstack(chains),
+        labels=params,
+        show_titles=True,
+        range=[(0.25,0.35), (0.65,0.75), (-1.2,-0.8), (0.6,0.8)],
+        truths=[Planck18.Om0, Planck18.Ode0, -1, Planck18.H0/100],
+        truth_color='red',
+        fig=fig,
+        ax=axes[1,1]
+    )
+    
+    plt.tight_layout()
+    plt.show()
+
+# ================================================================
+# EXECUÇÃO PRINCIPAL
+# ================================================================
+if __name__ == "__main__":
+    # Criar modelos comparativos
+    models = {
+        'ΛCDM Padrão': AdvancedCosmology(Om=0.31, Ol=0.69, w=-1.0),
+        'Energia Fantasma': AdvancedCosmology(Om=0.29, Ol=0.71, w=-1.1),
+        'Quintessência': AdvancedCosmology(Om=0.28, Ol=0.72, w=-0.9),
+        'Matéria Extra': AdvancedCosmology(Om=0.32, Ol=0.68, w=-1.0),
+        'Consenso Atual': AdvancedCosmology(Om=0.30, Ol=0.70, w=-1.0)
+    }
+    
+    # 1. Análise comparativa básica
+    print("=== Análise Comparativa dos Modelos ===")
+    for name, model in models.items():
+        print(f"\n{name}:")
+        print(f"- Idade do Universo: {model.age():.2f} Gyr")
+        print(f"- Distância luminosa em z=1: {model.luminosity_distance(1):.2f} Mpc")
+        print(f"- H(z=2): {model.hubble(2):.2f} km/s/Mpc")
+    
+    # 2. Visualização comparativa
+    compare_models(models)
+    
+    # 3. Validação com dados simulados/observacionais
+    print("\n=== Validação com Dados Observacionais ===")
+    validate_with_real_data(models)
+    
+    # 4. Análise estatística avançada (requer pacotes adicionais)
+    try:
+        import emcee
+        print("\nExecutando análise MCMC avançada...")
+        # (Código para análise bayesiana completa seria implementado aqui)
+    except ImportError:
+        print("\nPacotes avançados não disponíveis. Para análise completa instale:")
+        print("pip install emcee corner getdist cobaya camb")

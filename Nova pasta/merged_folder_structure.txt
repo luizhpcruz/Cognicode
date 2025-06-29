@@ -1,0 +1,66 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# --- 1. Carregar o arquivo PantheonPlus_SH0ES.dat ---
+pantheon_file = "PantheonPlus_SH0ES.dat"
+try:
+    # Tenta ler o arquivo assumindo que os dados são separados por qualquer quantidade de espaço.
+    # Comentários iniciados por '#' serão ignorados (se houver).
+    pantheon_data = pd.read_csv(pantheon_file, delim_whitespace=True, comment='#')
+    print("PantheonPlus_SH0ES.dat carregado com sucesso.")
+except Exception as e:
+    print("Erro ao carregar PantheonPlus_SH0ES.dat:", e)
+
+# Exibir as primeiras linhas para revisão
+print("Cabeçalho do PantheonPlus_SH0ES.dat:")
+print(pantheon_data.head())
+
+# --- 2. Carregar o arquivo Feb19_DESI_BAO.csv ---
+bao_file = "Feb19_DESI_BAO.csv"
+try:
+    # Ler arquivo sem cabeçalho; usando delimitador de espaço.
+    bao_data = pd.read_csv(bao_file, delim_whitespace=True, header=None)
+    print("Feb19_DESI_BAO.csv carregado com sucesso.")
+except Exception as e:
+    print("Erro ao carregar Feb19_DESI_BAO.csv:", e)
+
+print("Cabeçalho (primeiras linhas) do Feb19_DESI_BAO.csv:")
+print(bao_data.head())
+
+# Se a forma do arquivo tiver 7 colunas, atribuímos nomes provisórios:
+if bao_data.shape[1] == 7:
+    bao_data.columns = ['z', 'dummy2', 'dummy3', 'dummy4', 'dummy5', 'dummy6', 'D_V']
+    print("Colunas atribuídas ao BAO:", bao_data.columns.tolist())
+else:
+    print("Formato inesperado nos dados BAO; número de colunas:", bao_data.shape[1])
+
+# --- 3. Plot Comparativo dos Dados ---
+
+plt.figure(figsize=(10, 6))
+
+# Processar os dados do Pantheon:
+# Verifica se as colunas 'z' e 'mu' (distância-modulus) existem
+if 'z' in pantheon_data.columns and 'mu' in pantheon_data.columns:
+    # Se existir coluna de erro "mu_err", ela será usada como barra de erro.
+    plt.errorbar(pantheon_data['z'], pantheon_data['mu'],
+                 yerr=pantheon_data.get('mu_err', None),
+                 fmt='o', label="PantheonPlus_SH0ES", color='blue')
+else:
+    # Se não houver, usa as duas primeiras colunas assumindo que são z e mu
+    pantheon_data.columns = ['z', 'mu'] + list(pantheon_data.columns[2:])
+    plt.errorbar(pantheon_data['z'], pantheon_data['mu'],
+                 fmt='o', label="PantheonPlus_SH0ES", color='blue')
+
+# Plot dos dados BAO usando as colunas 'z' e 'D_V'
+if 'z' in bao_data.columns and 'D_V' in bao_data.columns:
+    plt.plot(bao_data['z'], bao_data['D_V'], 'rs-', label="Feb19_DESI_BAO")
+else:
+    print("Os dados BAO não apresentam as colunas esperadas 'z' ou 'D_V'.")
+
+plt.xlabel("Redshift (z)")
+plt.ylabel("Medida de Distância (unidades arbitrárias)")
+plt.title("Comparativo: Dados Pantheon vs. BAO")
+plt.legend()
+plt.grid(True)
+plt.savefig("Pantheon_BAO_comparison.png", dpi=300)
+plt.show()

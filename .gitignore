@@ -1,0 +1,27 @@
+# .gitignore para DAEMON PROJECT
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+*.log
+*.zip
+*.gif
+*.png
+*.jpg
+*.jpeg
+*.csv
+.env
+.DS_Store
+.idea/
+.vscode/
+*.egg-info/
+
+# Exclui arquivos temporários e de backup
+*~
+*.swp
+*.bak
+
+# Exclui arquivos de dados e resultados grandes
+/data/

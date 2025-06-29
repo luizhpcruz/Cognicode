@@ -1,0 +1,456 @@
+# project_root/
+# ├── core_ia/
+# ├── security/
+# ├── utils/
+# └── ... (demais diretórios)
+
+
+# === security/system_recovery/rollback_executor.py ===
+import asyncio
+import logging
+import os
+import shutil
+from typing import Dict, Any
+
+from utils.exceptions import IntegrityViolationError
+from utils.logger import app_logger # Usando o logger global
+
+class RollbackExecutor:
+    """
+    Executa o rollback automático do código a partir de um snapshot validado.
+    Responsável por restaurar o estado limpo do código.
+    """
+    def __init__(self, code_base_path: str, snapshot_manager: Any): # Usar tipo mais específico para snapshot_manager se circular dependency
+        self.code_base_path = code_base_path # Caminho onde o código da IA está em execução
+        self.snapshot_manager = snapshot_manager # Dependência para o SnapshotManager
+        app_logger.info(f"RollbackExecutor initialized for code path: {self.code_base_path}")
+
+    async def execute_rollback(self, snapshot_id: str) -> bool:
+        """
+        Executa o rollback do código-base para um snapshot específico.
+        Idealmente, isso envolveria a substituição da imagem do contêiner ou VM.
+        Para demonstração, simula a substituição de arquivos.
+        """
+        app_logger.critical(f"Initiating code rollback to snapshot ID: {snapshot_id}")
+        
+        try:
+            # 1. Obter o caminho do snapshot validado do SnapshotManager
+            snapshot_path = await self.snapshot_manager.get_valid_snapshot_path(snapshot_id)
+            if not snapshot_path or not os.path.exists(snapshot_path):
+                app_logger.error(f"Snapshot path for ID {snapshot_id} not found or invalid.")
+                return False
+
+            app_logger.info(f"Restoring from snapshot: {snapshot_path}")
+
+            # 2. Simulação de substituição de código
+            # Em um ambiente de contêiner/VM imutável, esta etapa seria:
+            # - Notificar o orquestrador (Kubernetes) para encerrar o pod/VM atual.
+            # - Iniciar um novo pod/VM a partir da imagem validada do snapshot.
+            # Esta simulação assume um ambiente onde a sobrescrita é possível (não recomendado para produção)
+            
+            # PASSO CRÍTICO: Remoção do código comprometido
+            # Cuidado extremo ao usar shutil.rmtree em produção.
+            # Idealmente, o código comprometido estaria em um volume efêmero
+            # que seria descartado.
+            app_logger.warning(f"Simulating removal of compromised code at {self.code_base_path}...")
+            # Excluir apenas arquivos dentro de um subdiretório específico para evitar acidentes
+            for item in os.listdir(self.code_base_path):
+                s = os.path.join(self.code_base_path, item)
+                if os.path.isfile(s):
+                    os.remove(s)
+                elif os.path.isdir(s) and item not in ['data', 'logs']: # Evita apagar dados importantes
+                    shutil.rmtree(s)
+            
+            # PASSO CRÍTICO: Copiar o código do snapshot
+            app_logger.info(f"Copying clean code from snapshot {snapshot_path} to {self.code_base_path}...")
+            # Isso seria a descompactação de um tar.gz ou rsync
+            # shutil.copytree(snapshot_path, self.code_base_path, dirs_exist_ok=True)
+            
+            # Simulação de cópia de arquivos (para não ter que gerenciar tar.gz)
+            # Criar um arquivo dummy para simular a restauração
+            dummy_restored_file = os.path.join(self.code_base_path, "restored_core_ia_app.py")
+            with open(dummy_restored_file, "w") as f:
+                f.write("# This file was restored from a validated snapshot.\nprint('IA online!')\n")
+            app_logger.info(f"Simulated restoration by creating {dummy_restored_file}.")
+
+            # 3. Notificar o sistema que um reinício é necessário (ou o reinício já aconteceu se for VM/Container)
+            app_logger.info("Code rollback completed. System restart is typically required.")
+            
+            # A revalidação seria feita pelo IntegrityMonitor logo após o "reinício"
+            app_logger.info("Rollback successful. System should now revalidate its integrity.")
+            return True
+
+        except Exception as e:
+            app_logger.critical(f"Failed to execute rollback to snapshot {snapshot_id}: {e}", exc_info=True)
+            return False
+
+# === security/behavioral_analysis/response_orchestrator.py ===
+import logging
+from typing import Dict, Any
+
+from utils.exceptions import AnomalyDetectedError
+from security.system_recovery.emergency_hatch import EmergencyHatch # Para ações extremas
+from security.p2p_consensus.quorum_validator import QuorumValidator # Para notificar o P2P
+
+app_logger = logging.getLogger("ResponseOrchestrator")
+
+class ResponseOrchestrator:
+    """
+    Coordena as ações de resposta a anomalias detectadas pelo módulo comportamental.
+    """
+    def __init__(self, emergency_hatch: EmergencyHatch, quorum_validator: QuorumValidator):
+        self.emergency_hatch = emergency_hatch
+        self.quorum_validator = quorum_validator
+        app_logger.info("ResponseOrchestrator initialized.")
+
+    async def handle_anomaly(self, anomaly_type: str, severity: float, details: Dict[str, Any]):
+        """
+        Determina e executa ações de resposta com base na anomalia e severidade.
+        """
+        app_logger.warning(f"Anomaly detected! Type: {anomaly_type}, Severity: {severity}, Details: {details}")
+
+        # Defina limites e políticas de resposta aqui
+        if severity >= 0.8: # Severidade alta: Potencial ataque
+            app_logger.critical(f"High severity anomaly ({anomaly_type}) detected. Initiating critical response.")
+            # 1. Notificar a rede P2P para validação distribuída do estado do nó/usuário
+            #    O QuorumValidator pode iniciar uma verificação de integridade ou isolamento do peer.
+            #    Exemplo: self.quorum_validator.initiate_anomaly_consensus(self.node_id, details)
+            
+            # 2. Considerar o botão de escape para auto-isolamento
+            if details.get("user_id") == "malicious_actor_detected": # Exemplo
+                app_logger.critical(f"Highly suspicious actor '{details.get('user_id')}' detected. Forcing local shutdown.")
+                await self.emergency_hatch.activate_emergency_shutdown(
+                    f"Behavioral Anomaly (High Severity) from {details.get('user_id')}", force_exit=True
+                )
+            else:
+                # Se não for para desligar o nó inteiro, talvez isole o usuário.
+                # Isto exigiria integração com o AccessControl para bloquear o usuário temporariamente.
+                app_logger.info(f"Notifying P2P network about high severity anomaly from {details.get('user_id')}.")
+                # await self.quorum_validator.initiate_behavioral_consensus(details) # Exemplo
+                # Para fins de demonstração, apenas o log será feito.
+
+        elif severity >= 0.5: # Severidade média: Comportamento suspeito
+            app_logger.warning(f"Medium severity anomaly ({anomaly_type}) detected. Applying soft countermeasures.")
+            # - Disparar alerta para equipe de segurança
+            # - Aumentar logging para o usuário/sessão
+            # - Reduzir taxa de resposta para o usuário suspeito (se a API permitir)
+            # - Ativar filtros de conteúdo mais rigorosos para o usuário/sessão.
+            pass
+
+        else: # Severidade baixa: Anomalia leve, talvez uma mudança de hábito
+            app_logger.info(f"Low severity anomaly ({anomaly_type}) detected. Monitoring initiated.")
+            # - Registrar log detalhado para análise posterior
+            # - Não tomar ação imediata, mas manter vigilância
+
+        app_logger.info(f"Anomaly response for {anomaly_type} completed.")
+
+# === security/system_recovery/snapshot_manager.py ===
+import logging
+import os
+import hashlib # Para simular hash de snapshot
+from datetime import datetime
+from typing import Optional, Dict, Any
+
+from utils.cryptography_utils import calculate_file_hash, sign_data_with_private_key, verify_signature_with_public_key, _GLOBAL_TRUSTED_PUBLIC_KEY
+from utils.exceptions import SecurityException
+from utils.logger import app_logger # Usando o logger global
+
+class SnapshotManager:
+    """
+    Gerencia a criação, armazenamento e validação de snapshots de código-base.
+    Atua como o repositório para os "Golden Images".
+    """
+    def __init__(self, snapshot_storage_path: str, private_key_obj: Any): # private_key_obj é uma instância de chave privada
+        self.snapshot_storage_path = snapshot_storage_path
+        os.makedirs(self.snapshot_storage_path, exist_ok=True)
+        self.private_key = private_key_obj # Chave privada para assinar snapshots
+        self._registered_snapshots: Dict[str, Dict[str, str]] = {} # {snapshot_id: {"path": "...", "hash": "...", "signature": "..."}}
+        app_logger.info(f"SnapshotManager initialized. Storage: {self.snapshot_storage_path}")
+
+    async def create_snapshot(self, source_path: str, description: str = "Automated snapshot") -> Optional[str]:
+        """
+        Cria um snapshot do diretório de origem, calcula seu hash, assina e armazena.
+        Retorna o ID do snapshot.
+        """
+        snapshot_id = f"snapshot_{datetime.now().strftime('%Y%m%d%H%M%S')}_{hashlib.sha256(description.encode()).hexdigest()[:8]}"
+        target_snapshot_dir = os.path.join(self.snapshot_storage_path, snapshot_id)
+        
+        try:
+            # Simulação de cópia de arquivos para o snapshot
+            os.makedirs(target_snapshot_dir, exist_ok=True)
+            # Em um sistema real, seria um `shutil.copytree` ou `tar/zip` do diretório
+            # Para esta demonstração, criar um arquivo dummy no snapshot
+            dummy_file_in_snapshot = os.path.join(target_snapshot_dir, "snapshot_marker.txt")
+            with open(dummy_file_in_snapshot, "w") as f:
+                f.write(f"This is a snapshot of {source_path} created on {datetime.now()}. Description: {description}")
+            app_logger.info(f"Simulated creation of snapshot directory at {target_snapshot_dir}")
+
+            # Calcular o hash do snapshot (idealmente do tarball ou diretório inteiro)
+            # Para simular, vamos hash do dummy file. Em produção seria do pacote do código inteiro.
+            snapshot_hash = calculate_file_hash(dummy_file_in_snapshot) 
+            if not snapshot_hash:
+                app_logger.error(f"Failed to calculate hash for snapshot {snapshot_id}.")
+                return None
+
+            # Assinar o hash do snapshot com a chave privada
+            snapshot_signature = sign_data_with_private_key(self.private_key, snapshot_hash.encode('utf-8'))
+
+            self._registered_snapshots[snapshot_id] = {
+                "path": target_snapshot_dir,
+                "hash": snapshot_hash,
+                "signature": snapshot_signature,
+                "created_at": datetime.now().isoformat(),
+                "description": description
+            }
+            app_logger.info(f"Snapshot '{snapshot_id}' created, hashed, and signed. Stored at {target_snapshot_dir}.")
+            return snapshot_id
+
+        except Exception as e:
+            app_logger.error(f"Error creating snapshot for {source_path}: {e}", exc_info=True)
+            return None
+
+    async def get_valid_snapshot_path(self, snapshot_id: str) -> Optional[str]:
+        """
+        Retorna o caminho de um snapshot APENAS se seu hash e assinatura forem válidos.
+        """
+        snapshot_info = self._registered_snapshots.get(snapshot_id)
+        if not snapshot_info:
+            app_logger.warning(f"Requested snapshot ID '{snapshot_id}' not found.")
+            return None
+
+        snapshot_path = snapshot_info["path"]
+        expected_hash = snapshot_info["hash"]
+        expected_signature = snapshot_info["signature"]
+
+        # 1. Recalcular o hash do snapshot (o que estiver no disco)
+        # Novamente, para simular, hash do dummy file.
+        current_snapshot_hash = calculate_file_hash(os.path.join(snapshot_path, "snapshot_marker.txt"))
+        if not current_snapshot_hash or current_snapshot_hash != expected_hash:
+            app_logger.critical(f"Snapshot '{snapshot_id}' hash mismatch. Potential tampering detected! Path: {snapshot_path}")
+            return None
+
+        # 2. Verificar a assinatura digital do hash atual do snapshot
+        if not verify_signature_with_public_key(_GLOBAL_TRUSTED_PUBLIC_KEY, current_snapshot_hash.encode('utf-8'), expected_signature):
+            app_logger.critical(f"Snapshot '{snapshot_id}' signature verification failed! Possible snapshot compromise! Path: {snapshot_path}")
+            return None
+
+        app_logger.info(f"Snapshot '{snapshot_id}' is valid. Path: {snapshot_path}")
+        return snapshot_path
+
+    async def get_latest_valid_snapshot_id(self) -> Optional[str]:
+        """Retorna o ID do snapshot válido mais recente."""
+        latest_snapshot_id = None
+        latest_timestamp = None
+
+        for snapshot_id, info in self._registered_snapshots.items():
+            snapshot_datetime = datetime.fromisoformat(info["created_at"])
+            if latest_timestamp is None or snapshot_datetime > latest_timestamp:
+                # Uma verificação de validade completa seria feita aqui antes de considerar "o mais recente"
+                # Mas para simplicidade, assumimos que snapshots registrados já foram validados na criação.
+                latest_snapshot_id = snapshot_id
+                latest_timestamp = snapshot_datetime
+        
+        return latest_snapshot_id
+
+# === core_ia/prompt_processing.py ===
+import logging
+from typing import Dict, Any
+import re
+# Importar bibliotecas de PLN, como NLTK ou SpaCy, se necessário
+# import nltk
+# from nltk.corpus import stopwords
+# from nltk.stem import WordNetLemmatizer
+
+app_logger = logging.getLogger("PromptProcessing")
+
+class PromptProcessor:
+    """
+    Responsável pela pré-análise e normalização dos prompts recebidos pela IA.
+    """
+    def __init__(self):
+        # nltk.download('stopwords') # Exemplo de download de recursos
+        # self.stopwords = set(stopwords.words('portuguese'))
+        # self.lemmatizer = WordNetLemmatizer()
+        app_logger.info("PromptProcessor initialized.")
+
+    async def preprocess_prompt(self, prompt_text: str) -> Dict[str, Any]:
+        """
+        Executa uma série de etapas de pré-processamento no texto do prompt.
+        Retorna um dicionário com o prompt processado e metadados.
+        """
+        processed_text = prompt_text.strip().lower() # Remover espaços e minúsculas
+
+        # 1. Remover caracteres especiais ou HTML (se aplicável)
+        processed_text = re.sub(r'<.*?>', '', processed_text) # Remove tags HTML
+        processed_text = re.sub(r'[^a-zA-Z0-9\s.,?!]', '', processed_text) # Remove chars não alfanuméricos
+
+        # 2. Normalização de espaçamento
+        processed_text = re.sub(r'\s+', ' ', processed_text).strip()
+
+        # 3. (Opcional) Tokenização, remoção de stopwords, lematização
+        # tokens = nltk.word_tokenize(processed_text, language='portuguese')
+        # filtered_tokens = [self.lemmatizer.lemmatize(word) for word in tokens if word not in self.stopwords]
+        # processed_text = " ".join(filtered_tokens)
+
+        # 4. Análise de intenção (simplificado)
+        intent = "general_query"
+        if "o que é" in processed_text or "qual o significado" in processed_text:
+            intent = "definition_query"
+        elif "como fazer" in processed_text:
+            intent = "how_to_query"
+
+        app_logger.debug(f"Prompt processed. Original: '{prompt_text[:30]}...', Processed: '{processed_text[:30]}...', Intent: {intent}")
+        return {
+            "processed_text": processed_text,
+            "original_length": len(prompt_text),
+            "processed_length": len(processed_text),
+            "intent": intent,
+            "language": "pt-br" # Detecção de idioma seria aqui
+        }
+
+# === core_ia/response_generation.py ===
+import logging
+from typing import Dict, Any
+
+app_logger = logging.getLogger("ResponseGeneration")
+
+class ResponseGenerator:
+    """
+    Responsável pela formatação e pós-processamento das respostas brutas da IA.
+    Garanti que as respostas sigam um formato padrão e sejam seguras antes de serem enviadas.
+    """
+    def __init__(self):
+        app_logger.info("ResponseGenerator initialized.")
+
+    async def format_and_postprocess_response(self, raw_response: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Formata a resposta bruta da IA em um formato padrão e aplica pós-processamento.
+        """
+        response_text = raw_response.get("text", "Não foi possível gerar uma resposta.")
+        is_safe = raw_response.get("is_safe", False)
+        status = raw_response.get("status", "error")
+
+        # 1. Adicionar saudação ou encerramento contextual
+        if status == "success":
+            response_text = f"🤖: {response_text}"
+        elif status == "policy_violation":
+            response_text = f"🔒: {response_text}"
+        
+        # 2. Truncar ou resumir respostas muito longas
+        MAX_RESPONSE_LENGTH = 1000 # Caracteres
+        if len(response_text) > MAX_RESPONSE_LENGTH:
+            response_text = response_text[:MAX_RESPONSE_LENGTH-3] + "..."
+            app_logger.warning(f"Response truncated due to length for session {context.get('session_id')}.")
+
+        # 3. Aplicar filtros de segurança de saída (se não feitos antes pelo LLMService)
+        # Ex: Remoção de PII, sanitização de HTML, etc.
+        # if not is_safe:
+        #    response_text = "Resposta contém conteúdo potencialmente inseguro e foi bloqueada."
+
+        app_logger.debug(f"Response post-processed. Status: {status}, Safe: {is_safe}, Len: {len(response_text)}")
+        
+        return {
+            "response_text": response_text,
+            "is_safe": is_safe,
+            "status": status,
+            "original_raw_response_hash": raw_response.get("response_hash") # Hash da resposta bruta antes do pós-processamento
+        }
+
+# === core_ia/data_models.py ===
+from pydantic import BaseModel
+from typing import Optional
+
+# Já definimos PromptRequest e AIResponse em core_ia/app.py para demonstração do FastAPI.
+# Mas idealmente, eles estariam aqui para serem importados.
+# Exemplo de como seriam (reiterando):
+
+class PromptRequest(BaseModel):
+    """Modelo de dados para uma requisição de prompt de IA."""
+    user_id: str
+    prompt_text: str
+    session_id: Optional[str] = None
+    auth_token: str
+
+class AIResponse(BaseModel):
+    """Modelo de dados para a resposta da IA."""
+    session_id: str
+    response_text: str
+    is_safe: bool = True
+    status: str = "success"
+    response_hash: Optional[str] = None
+
+# Poderíamos ter outros modelos aqui:
+class SystemStatusReport(BaseModel):
+    """Modelo para relatórios de status do sistema."""
+    node_id: str
+    cpu_usage: float
+    memory_usage: float
+    integrity_status: str
+    p2p_active_peers: int
+    timestamp: float
+
+# === utils/config_loader.py ===
+import logging
+import os
+from typing import Dict, Any
+
+app_logger = logging.getLogger("ConfigLoader")
+
+class ConfigLoader:
+    """
+    Carrega configurações do ambiente de forma segura, priorizando variáveis de ambiente.
+    """
+    def __init__(self, default_config_path: str = "config/defaults.json"):
+        self.default_config_path = default_config_path
+        self._config: Dict[str, Any] = {}
+        app_logger.info("ConfigLoader initialized.")
+
+    async def load_config(self) -> Dict[str, Any]:
+        """
+        Carrega as configurações.
+        Prioriza: Variáveis de Ambiente > Arquivo de Configuração (seguro, talvez assinado).
+        """
+        app_logger.info("Loading configuration...")
+        
+        # 1. Carregar valores padrão de um arquivo (se houver)
+        if os.path.exists(self.default_config_path):
+            try:
+                # Em um cenário real, este arquivo DEVE ser assinado digitalmente
+                # e sua integridade verificada antes de ser carregado.
+                # Não estamos fazendo isso aqui por simplicidade, mas é crucial.
+                import json
+                with open(self.default_config_path, 'r') as f:
+                    self._config.update(json.load(f))
+                app_logger.info(f"Loaded default configurations from {self.default_config_path}.")
+            except Exception as e:
+                app_logger.error(f"Failed to load default config from {self.default_config_path}: {e}", exc_info=True)
+        
+        # 2. Sobrescrever com variáveis de ambiente (MELHOR PRÁTICA para segredos e configs de deploy)
+        # Ex: DATABASE_URL, LOG_LEVEL, P2P_NODE_ID
+        for key, value in os.environ.items():
+            # Converte chaves para minúsculas ou um padrão específico para facilitar acesso
+            if key.startswith("APP_"): # Exemplo de prefixo para configs da nossa app
+                config_key = key[len("APP_"):].lower()
+                try: # Tenta converter para int/bool se apropriado
+                    if value.lower() in ["true", "false"]:
+                        self._config[config_key] = (value.lower() == "true")
+                    elif value.isdigit():
+                        self._config[config_key] = int(value)
+                    else:
+                        self._config[config_key] = value
+                except Exception:
+                    self._config[config_key] = value # Fallback para string
+                app_logger.debug(f"Overridden config '{config_key}' from environment variable.")
+
+        app_logger.info("Configuration loading complete.")
+        return self._config
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """Obtém um valor de configuração."""
+        return self._config.get(key, default)
+
+    def __getitem__(self, key: str) -> Any:
+        """Permite acesso a configuração como dicionário (config['key'])."""
+        if key not in self._config:
+            raise KeyError(f"Configuration key '{key}' not found.")
+        return self._config[key]

@@ -1,0 +1,22 @@
+import numpy as np
+from scipy.integrate import quad
+
+# Parâmetros
+H0 = 70.51  # km/s/Mpc
+Om = 0.291
+w0 = -1.08
+
+# Conversão de unidades
+H0_s = H0 / (3.086e19)  # H0 em s⁻¹
+seconds_in_gy = 3.154e16 * 1e9  # s em 1 Giga-ano
+
+# Função para tempo de expansão em função do fator de escala a
+def integrand_big_rip(a):
+    return 1 / (a * H0 * np.sqrt(Om / a**3 + (1 - Om) / a**(3 * (1 + w0))))
+
+# Integrar de a = 1 até infinito (usando limite grande)
+t_rip, _ = quad(integrand_big_rip, 1, 1000, limit=200)
+
+# Converter para Giga-anos
+t_rip_gy = t_rip / H0_s / seconds_in_gy
+print(f"Tempo até o Big Rip ≈ {t_rip_gy:.2f} bilhões de anos")
