@@ -1,43 +1,45 @@
-# main_cognicode.py
-# Controlador principal para o Projeto DAEMON
-
-# Importa o módulo de evolução do DAEMON
-from daemon_engine.evolution_pipeline import run_evolutionary_cycle
-import matplotlib.pyplot as plt
-
-def run_daemon_test():
-    """
-    Executa um teste do Projeto DAEMON, simulando a evolução de universos simbólicos
-    ao longo de múltiplas gerações.
-    """
-    print("Iniciando o sistema CogniCode Engine - Modo DAEMON...")
-    
-    # --- Parâmetros do teste de evolução ---
-    NUM_GENERATIONS = 30  # Número de gerações para a evolução
-    UNIVERSES_PER_GEN = 10 # Número de universos em cada geração
-    SIMULATION_TIME = 20.0 # Tempo de simulação para cada universo (em unidades normalizadas)
-    
-    # --- Executa o ciclo de evolução ---
-    # A função run_evolutionary_cycle retorna o histórico da melhor aptidão e o DNA evoluído.
-    best_fitness_history, evolved_dna = run_evolutionary_cycle(
-        num_generations=NUM_GENERATIONS,
-        num_universes_per_gen=UNIVERSES_PER_GEN,
-        simulation_time=SIMULATION_TIME
-    )
-    
-    print("\n--- Teste do Projeto DAEMON Concluído ---")
-    print(f"Melhor Aptidão Final: {best_fitness_history[-1]:.4f}")
-    print(f"DNA Simbólico Mais Apto: {evolved_dna.fingerprint}")
-
-    # --- Visualização do Progresso da Evolução ---
-    plt.figure(figsize=(10, 6))
-    plt.plot(range(1, NUM_GENERATIONS + 1), best_fitness_history, marker='o', linestyle='-', color='indigo')
-    plt.title("Evolução da Aptidão (Fitness) do Universo ao Longo das Gerações")
-    plt.xlabel("Geração")
-    plt.ylabel("Melhor Aptidão (Fitness)")
-    plt.grid(True, linestyle=':', alpha=0.6)
-    plt.tight_layout()
-    plt.show()
+"""
+main_cognicode.py
+Script principal do framework CogniCode: orquestra simulações, evolução e análise.
+"""
+from evolution.evolution_pipeline import EvolutionPipeline
+from incentives.incentive_system import IncentiveSystem
+from symbolic_ai.symbolic_dna import SymbolicDNA
+import numpy as np
 
 if __name__ == '__main__':
-    run_daemon_test()
+    print("Iniciando o CogniCode: Framework de Simulação e IA Evolutiva...")
+    evolution_pipeline = EvolutionPipeline()
+    incentive_system = IncentiveSystem(evolution_pipeline)
+    user_dna = SymbolicDNA({
+        'exploration_rate': np.random.uniform(0.1, 0.9),
+        'risk_tolerance': np.random.uniform(0, 1),
+        'domain_focus': np.random.uniform(0, 1),
+        'innovation_bias': np.random.uniform(0.1, 0.5),
+        'cosmo_h0_bias': np.random.uniform(-5, 5),
+        'exo_star_temp_bias': np.random.uniform(-1000, 1000),
+        'compbio_protein_len_bias': np.random.uniform(-20, 20),
+        'climate_co2_bias': np.random.uniform(-0.3, 0.3),
+        'material_comp_iron': np.random.uniform(0.1, 0.9),
+        'material_comp_carbon': np.random.uniform(0.1, 0.9),
+        'exo_formation_efficiency': np.random.uniform(0.1, 1.0),
+        'exo_migration_stability': np.random.uniform(0.1, 1.0),
+        'compbio_structure_affinity': np.random.uniform(0.1, 1.0),
+    }, fitness_score=5.0, is_user_dna=True)
+    evolution_pipeline.dna_pool.append(user_dna)
+    print(f"\n[NOVO USUÁRIO] DNA simbólico adicionado ao pool.")
+    incentive_system.register_participant(user_dna.fingerprint)
+    print(f"Saldo inicial: {incentive_system.get_balance(user_dna.fingerprint):.4f} tokens.")
+    while True:
+        try:
+            user_input = input("\nDigite comando DSL (ou 'EXIT' para sair): ").strip()
+            if user_input.upper() in ("EXIT", "QUIT", "SAIR"):
+                print("Encerrando CogniCode. Até logo!")
+                break
+            from cli.dsl_interpreter import run_dsl_script
+            run_dsl_script(user_input, evolution_pipeline, incentive_system)
+        except KeyboardInterrupt:
+            print("\nInterrompido pelo usuário. Encerrando.")
+            break
+        except Exception as e:
+            print(f"Erro ao executar comando: {e}")

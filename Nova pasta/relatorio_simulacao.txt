@@ -1,3 +1,0 @@
-Resumo da Simulação Astrofísica
-Exoplanetas simulados: 0
-Veja hist_temp_equilibrio.png para distribuição de T_eq.

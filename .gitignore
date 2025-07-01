@@ -1,27 +1,81 @@
-# .gitignore para DAEMON PROJECT
+# CogniCode/Python project .gitignore (restrito)
+# Byte-compiled / cache / virtualenv
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
 *.pyd
+*.so
+*.dll
+*.egg-info/
+*.manifest
+*.spec
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+.env/
+
+# IDE/editor configs
+.idea/
+.vscode/
+*.code-workspace
+.DS_Store
+Thumbs.db
+
+# Dados, logs e arquivos temporários
 *.db
 *.sqlite3
 *.log
+*.csv
+*.json
 *.zip
+*.tar.gz
+*.bak
+*.tmp
+*.swp
+*.swo
+*.ipynb_checkpoints/
+
+# Arquivos de imagem e mídia
 *.gif
 *.png
 *.jpg
 *.jpeg
-*.csv
-.env
-.DS_Store
-.idea/
-.vscode/
-*.egg-info/
+*.bmp
+*.tiff
+*.mp4
+*.avi
+*.mov
 
-# Exclui arquivos temporários e de backup
-*~
-*.swp
-*.bak
-
-# Exclui arquivos de dados e resultados grandes
+# Dados experimentais e pastas de dados
 /data/
+/data/*
+
+# Excluir notebooks
+*.ipynb
+
+# Excluir arquivos de teste e pastas antigas
+/test*/
+/TEST*/
+/HIDEM/
+/HIPOTESE/
+/03_daemon_engine/
+/AEONCOSMA V2/
+/Nova pasta/
+
+# Excluir scripts auxiliares
+*.ps1
+*.bat
+init_git.ps1
+push_to_github.ps1
+
+# Excluir arquivos de texto soltos
+*.txt
+
+# Permitir apenas o núcleo do projeto
+!main_cognicode.py
+!evolution/
+!incentives/
+!symbolic_ai/
+!cli/

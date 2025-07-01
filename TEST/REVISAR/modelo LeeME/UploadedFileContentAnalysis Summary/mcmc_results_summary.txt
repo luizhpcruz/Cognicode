@@ -1,3 +1,0 @@
-Resultados do MCMC:
-H0 = 59.48 +12.58 / -11.99 km/s/Mpc
-Omega_m = 0.395 +0.193 / -0.120
