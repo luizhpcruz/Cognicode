@@ -652,71 +652,20 @@ class ResearchEngine:
     
     def _interpret_and_communicate_results(self, research_results: List[ResearchResult], current_dna_genes: Dict[str, float]) -> str:
         """
-        NOVA FUNÇÃO: Usa um LLM para interpretar e comunicar as descobertas da pesquisa
-        de forma mais inteligente, buscando insights, tendências e formulando hipóteses.
-        Inclui contexto dos genes do DNA atual.
+        NOVA FUNÇÃO: Interpretação local simulada (sem uso de API Gemini).
         """
-        print("  [LLM] Interpretando resultados da pesquisa com profundidade...")
-        
-        # SUA CHAVE GEMINI FOI INSERIDA AQUI!
-        apiKey = "INSIRA_SUA_API_KEY_AQUI"
-
-        if not apiKey: # Mantido como fallback para aviso
-            return "Interpretação LLM: Chave de API do Gemini não configurada. A interpretação da pesquisa não foi gerada."
-
-        # Construir o prompt para o LLM com instruções mais sofisticadas
-        prompt_parts = [
-            "Você é uma inteligência artificial avançada do AeonCosma Engine, especializada em pesquisa científica multidisciplinar. Sua tarefa é analisar os resultados de pesquisa a seguir em vários domínios, levando em conta os parâmetros (genes) do DNA que guiou esta pesquisa. Você deve agir como um cientista brilhante e visionário.\n\n"
-            "Por favor, forneça uma análise concisa e inteligente, abordando os seguintes pontos:\n"
-            "1.  **Insights e Padrões Principais:** Quais são as descobertas mais significativas e quaisquer padrões emergentes ou correlações inesperadas entre os domínios?\n"
-            "2.  **Implicações e Conexões Interdisciplinares:** Como os resultados de um domínio influenciam ou se conectam com os outros? Há potencial para sinergias ou conflitos?\n"
-            "3.  **Desafios, Anomalias ou Limitações:** Identifique quaisquer resultados inesperados, inconsistências, ou onde os dados atuais são insuficientes para uma conclusão sólida. O que isso sugere sobre as lacunas no nosso conhecimento?\n"
-            "4.  **Formulação de Hipóteses e Próximos Passos de Pesquisa:** Com base nestas descobertas, quais novas e ousadas hipóteses você pode formular? Que direções de pesquisa futuras (e.g., experimentos, simulações, integrações de dados) você sugere para explorar essas hipóteses e avançar o conhecimento?\n"
-            "5.  **Reflexão sobre a Estratégia de Pesquisa (Metacognição Implícita):** Como os parâmetros do DNA (exploração, risco, foco, inovação) podem ter influenciado o *tipo* de descobertas realizadas nesta época? Qual é a eficácia da abordagem atual do DNA?\n\n"
-            "Mantenha a linguagem clara e acessível, mas com a profundidade de um especialista. Formate sua resposta como um relatório analítico breve, com títulos de seções.\n\n"
-        ]
-
-        # Incluir os resultados detalhados da pesquisa
+        print("  [LLM] (Simulado) Interpretando resultados da pesquisa localmente...")
+        # Gera um resumo simples dos resultados, sem chamada externa
+        insights = []
         for result in research_results:
-            prompt_parts.append(f"### Domínio: {result.domain.name.replace('_', ' ').title()}\n")
-            prompt_parts.append("Métricas: `" + json.dumps({k: f"{v:.4f}" for k, v in result.metrics.items()}) + "`\n")
-            prompt_parts.append("Parâmetros Chave: `" + json.dumps({k: f"{v:.4f}" for k, v in result.parameters.items()}) + "`\n")
-            prompt_parts.append("---\n")
-
-        # Adicionar os genes do DNA para o LLM considerar sua influência
-        prompt_parts.append(f"\n### Genes do DNA que guiou esta pesquisa:\n`{json.dumps({k: f'{v:.4f}' for k, v in current_dna_genes.items()}, indent=2)}`\n\n")
-
-        prompt_parts.append("Agora, com base em todos esses dados, gere o relatório, começando com 'Relatório de Pesquisa da Época XX (AeonCosma Engine):':")
-        
-        prompt = "".join(prompt_parts)
-
-        # Configurar o payload para a chamada da API do Gemini
-        chatHistory = []
-        chatHistory.append({ "role": "user", "parts": [{ "text": prompt }] })
-        payload = { "contents": chatHistory }
-
-        apiUrl = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={apiKey}"
-
-        try:
-            response = requests.post(apiUrl, headers={'Content-Type': 'application/json'}, json=payload, timeout=90) # Aumentar timeout para LLM
-            response.raise_for_status()
-            
-            result = response.json()
-            
-            if result.get("candidates") and result["candidates"][0].get("content") and result["candidates"][0]["content"].get("parts"):
-                interpretation = result["candidates"][0]["content"]["parts"][0]["text"]
-                print("  [LLM] Interpretação gerada com sucesso.")
-                return interpretation
-            else:
-                print(f"  [LLM ERROR] Resposta inesperada do LLM: {result}")
-                return "Interpretação LLM: Falha ao gerar interpretação (resposta inesperada)."
-
-        except requests.exceptions.RequestException as e:
-            print(f"  [LLM ERROR] Falha na chamada da API do Gemini: {e}")
-            return f"Interpretação LLM: Falha ao gerar interpretação (erro de conexão ou API: {e})."
-        except (json.JSONDecodeError, KeyError) as e:
-            print(f"  [LLM ERROR] Falha ao analisar resposta JSON do LLM: {e}")
-            return f"Interpretação LLM: Falha ao gerar interpretação (erro de análise JSON: {e})."
+            insights.append(f"Domínio: {result.domain.name} | Métricas: {result.metrics}")
+        genes_str = ", ".join(f"{k}={v:.4f}" for k, v in current_dna_genes.items())
+        return (
+            "Relatório de Pesquisa (Simulado):\n"
+            + "\n".join(insights)
+            + f"\n\nGenes do DNA: {genes_str}\n"
+            + "\n(Interpretação automática local. Nenhuma chamada de API externa realizada.)"
+        )
 
     def execute_research_cycle(self):
         """
@@ -1078,9 +1027,9 @@ class QuantumIncentiveSystem:
         """Registra um DNA/participante no sistema de incentivo."""
         if self.get_balance(dna_fingerprint) == 0.0:
             self._update_balance(dna_fingerprint, 0.0)
-            print(f"[Incentive] Participante {dna_fingerprint[:8]}... registrado para incentivos.")
+            print(f"Participante {dna_fingerprint} registrado no sistema de incentivos.")
         else:
-            print(f"[Incentive] Participante {dna_fingerprint[:8]}... já está no sistema de incentivos.")
+            print(f"Participante {dna_fingerprint} já está registrado.")
 
     def distribute_research_rewards(self):
         """Distribui recompensas pelo último ciclo de pesquisa."""
@@ -1088,94 +1037,32 @@ class QuantumIncentiveSystem:
             SELECT combined_metric, dna_fingerprint FROM research_blocks 
             ORDER BY block_id DESC LIMIT 1
         ''').fetchone()
-        
         if not last_block:
-            print("[Incentive] Nenhum bloco de pesquisa encontrado para recompensar.")
+            print("Nenhum bloco de pesquisa encontrado para distribuir recompensas.")
             return
-        
         metric, dna_fingerprint = last_block
-        
         mining_dna = next((d for d in self.engine.dna_pool if d.fingerprint == dna_fingerprint), None)
-
         if mining_dna is None:
-            print(f"[Incentive] AVISO: DNA {dna_fingerprint[:8]}... que minerou o bloco não foi encontrado no pool atual. Nenhuma recompensa distribuída.")
+            print("DNA minerador não encontrado no pool.")
             return
-
         if self.token_supply >= self.MAX_TOKEN_SUPPLY:
-            print("[Incentive] ATENÇÃO: Limite máximo de tokens AEON atingido ou excedido. Nenhuma nova recompensa será distribuída.")
+            print("Suprimento máximo de tokens atingido. Não é possível distribuir mais recompensas.")
             return
-
         base_reward = 100.0
-        
+        reward_amount = base_reward * metric
         if mining_dna.is_user_dna:
-            reward_amount = base_reward * (1 + metric) 
-            reward_type_msg = "completa"
-        else:
-            reward_amount = base_reward * 0.01
-            reward_type_msg = "mínima (protocolo)"
-
+            reward_amount *= 1.2  # Bônus para DNA de usuário
         if self.token_supply + reward_amount > self.MAX_TOKEN_SUPPLY:
             reward_amount = self.MAX_TOKEN_SUPPLY - self.token_supply
-            if reward_amount <= 0:
-                print("[Incentive] ATENÇÃO: Limite máximo de tokens AEON atingido ou excedido. Nenhuma nova recompensa será distribuída.")
-                return
-
-        self.conn.execute('''
-            INSERT INTO rewards 
-            (epoch, dna_fingerprint, amount, metric_score, timestamp)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (
-            self.engine.current_epoch,
-            dna_fingerprint,
-            reward_amount,
-            metric,
-            datetime.now()
-        ))
-        
         self._update_balance(dna_fingerprint, reward_amount)
         self.token_supply += reward_amount
-        self.conn.commit()
-        print(f"[Incentive] Recompensa {reward_type_msg} de {reward_amount:.4f} tokens distribuída para {dna_fingerprint[:8]}... (Métrica: {metric:.4f})")
+        print(f"Recompensa de {reward_amount:.2f} AEON distribuída para {dna_fingerprint}.")
 
     def stake_tokens(self, participant_fingerprint: str, amount: float):
-        """Permite que um participante faça staking de tokens."""
-        current_balance = self.get_balance(participant_fingerprint)
-        if current_balance < amount:
-            print(f"[Incentive] ERRO: Saldo insuficiente para stake. Saldo: {current_balance:.2f}, Tentativa de stake: {amount:.2f}")
-            return False
-        
-        self.conn.execute('''
-            INSERT INTO stakes (participant_fingerprint, amount, start_time, end_time)
-            VALUES (?, ?, ?, NULL)
-        ''', (participant_fingerprint, amount, datetime.now()))
-        self._update_balance(participant_fingerprint, -amount)
-        self.staking_pool += amount
-        self.conn.commit()
-        print(f"[Incentive] {amount:.2f} tokens em stake por {participant_fingerprint[:8]}...")
-        return True
+        print("Função de staking ainda não implementada.")
 
     def unstake_tokens(self, participant_fingerprint: str, amount: float):
-        """Permite que um participante retire tokens do staking."""
-        staked_amount_query = self.conn.execute('''
-            SELECT SUM(amount) FROM stakes 
-            WHERE participant_fingerprint = ? AND end_time IS NULL
-        ''', (participant_fingerprint,)).fetchone()[0] or 0.0
-
-        if staked_amount_query < amount:
-            print(f"[Incentive] ERRO: {participant_fingerprint[:8]}... não tem {amount:.2f} tokens em stake para retirar. Atualmente em stake: {staked_amount_query:.2f}")
-            return False
-
-        self.conn.execute('''
-            UPDATE stakes SET end_time = ? 
-            WHERE participant_fingerprint = ? AND end_time IS NULL LIMIT 1
-        ''', (datetime.now(), participant_fingerprint))
-
-        self._update_balance(participant_fingerprint, amount)
-        self.staking_pool -= amount
-        self.conn.commit()
-        print(f"[Incentive] {amount:.2f} tokens retirados do stake por {participant_fingerprint[:8]}...")
-        return True
-
+        print("Função de unstaking ainda não implementada.")
 
 ##############################################
 # INTERPRETADOR DSL (Domain Specific Language)
